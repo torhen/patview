@@ -56,8 +56,7 @@ def read_header(msi_path):
             line = fin.readline()
             l.append(line)
             if line.startswith('HORIZONTAL'):
-                break
-    
+                return l
     return l
 
 
@@ -93,17 +92,34 @@ class App(tk.Tk):
         # --- Browser ----
         self.browser = ttk.Treeview(self)
         first_item = pathlib.Path(self.root_folder).resolve()
-        self.browser.insert('', 'end', first_item, text=first_item)
+
+        # --- add the full path till the file
+        path_parts = self.root_folder.parts
+        item = ''
+        for i in range(1, len(path_parts) + 1):
+            full_path = pathlib.Path(*path_parts[0:i])
+            if  full_path.name == '':
+                entry_text = full_path
+            else:
+                entry_text = full_path.name
+            
+            item = self.browser.insert(item, 'end', str(full_path), text=entry_text)
+            self.browser.item(item, open=True)
+
         self.browser.bind('<<TreeviewOpen>>', self.add_sub_folders)
         self.browser.bind("<<TreeviewSelect>>", self.get_and_add_files)
 
-        # Set focus and selection on the first item
-        self.browser.focus(first_item)              # Set keyboard focus
-        self.browser.selection_set(first_item)      # Highlight it visually
+        # select the last item
+        self.browser.focus(item)              # Set keyboard focus
+        self.browser.selection_set(item)      # Highlight it visually
+
+
+
+        # # Set focus and selection on the first item
         self.add_sub_folders()
-        # Expand the first (root) item
-        first_item = self.browser.get_children()[0]
-        self.browser.item(first_item, open=True)
+        # # Expand the first (root) item
+        # first_item = self.browser.get_children()[0]
+        # self.browser.item(first_item, open=True)
 
         # --- Table ---
         self.table = ttk.Treeview(self, columns=['freq', 'tilt'], selectmode="extended")
@@ -115,15 +131,21 @@ class App(tk.Tk):
         self.table.column('freq', width=20, anchor='w')
         self.table.bind("<<TreeviewSelect>>", self.draw)
         self.table.bind('<Button-1>', self.on_treeview_click)
+
+
         self.get_and_add_files()
+ 
+
 
         # --- Layout ----
-        self.browser.pack(side='left', expand=False, fill='both')
+        self.browser.pack(side='left', expand=True, fill='both')
         self.table.pack(side='left', expand=False, fill='both', ipadx=50) # make it abit wider
         self.canvas.pack(side='left', expand=True, fill='both')
 
         # axis
         self.draw_axis()
+
+
 
     def on_treeview_click(self, e):
         region = self.table.identify_region(e.x, e.y)
@@ -169,7 +191,7 @@ class App(tk.Tk):
 
     def get_and_add_files(self, e=None):
         base = self.browser.focus()
-
+        
          # add files
         self.files = []
         for item in pathlib.Path(base).iterdir():
@@ -199,6 +221,13 @@ class App(tk.Tk):
         self.sort_files('name', ascending=True)
         self.add_files()
 
+        try:
+            self.table.focus(self.start_msi)
+            self.table.selection_set(self.start_msi)
+            self.table.see(self.start_msi)
+        except:
+            print('not so good')
+
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
 
@@ -211,11 +240,7 @@ class App(tk.Tk):
         for row in self.files:        
             self.table.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
 
-        # Select item at startup
-        self.table.focus(self.start_msi)
-        self.table.selection_set(self.start_msi)
-        self.table.see(self.start_msi)
-        
+ 
 
     def draw(self, e=None):
         self.canvas.delete("all")
@@ -239,8 +264,8 @@ class App(tk.Tk):
                 filename = pathlib.Path(msi_file).name
                 header.insert(0, filename)
 
- 
-                if len(l) <= 1: # show multi line data
+                # lines for one pattern
+                if len(l) <= 1: 
                     for k, line in enumerate(header):
                         line = line.strip()
                         if k==0:
@@ -249,7 +274,7 @@ class App(tk.Tk):
                             my_font = (self.fontname, self.fontsize)
                         self.canvas.create_text(10, w/2 + k * self.fontsize * 1.5, text=line, fill=color, font=my_font, anchor='nw')
 
-
+                # show 1 line for one paattern
                 else:
                     text = pathlib.Path(msi_file).name
                     for k, line in enumerate(header):
