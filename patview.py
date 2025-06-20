@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import font
 import pathlib
 import re
 import math
@@ -49,16 +50,15 @@ def make_pattern_dic(msi_path):
     return dic
 
 def read_header(msi_path):
-    r = ''
+    l = []
     with open(msi_path) as fin:
         for i in range(50):
             line = fin.readline()
-            line = line.strip('\n')
-            line = line.replace(' ', ':', 1)
-            r = r + line + '|'
+            l.append(line)
             if line.startswith('HORIZONTAL'):
                 break
-    return r
+    
+    return l
 
 
 class App(tk.Tk):
@@ -75,7 +75,8 @@ class App(tk.Tk):
         # ---- Settings ----
         self.start_msi = start_msi
         self.start_geometry='1200x500'
-        self.fontsize=10
+        self.fontname = "Consolas"
+        self.fontsize = 10
         self.padding = 0.04
         self.ascending_0 = True
         self.ascending_1 = True
@@ -149,7 +150,7 @@ class App(tk.Tk):
                     self.sort_files('tilt', ascending=False)
                     self.ascending_2 = False
                 else:
-                    self.sort_files('tilt', ascending=True)
+                    self.sort_files('freq', ascending=True)
                     self.ascending_2 = True
 
             self.add_files()
@@ -225,13 +226,38 @@ class App(tk.Tk):
         w = self.canvas.winfo_width()
         a = self.padding * w
 
-        # draw antenna names
+        # fill antenna data 
         for i, msi_file in enumerate(l):
             if pathlib.Path(msi_file).suffix.lower() == '.msi':
                 color = colors[i % len(colors)]
+                # draw pattern
                 self.draw_pattern(msi_file, color)
-                text = pathlib.Path(msi_file).name + ': ' + read_header(msi_file)
-                self.canvas.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=("Consolas", self.fontsize), anchor='nw')
+
+
+                # draw antenna data
+                header = read_header(msi_file)
+                filename = pathlib.Path(msi_file).name
+                header.insert(0, filename)
+
+ 
+                if len(l) <= 1: # show multi line data
+                    for k, line in enumerate(header):
+                        line = line.strip()
+                        if k==0:
+                            my_font = font.Font(family=self.fontname, size=self.fontsize, weight="bold")
+                        else:
+                            my_font = (self.fontname, self.fontsize)
+                        self.canvas.create_text(10, w/2 + k * self.fontsize * 1.5, text=line, fill=color, font=my_font, anchor='nw')
+
+
+                else:
+                    text = pathlib.Path(msi_file).name
+                    for k, line in enumerate(header):
+                        line = line.strip('\n').strip()
+                        if len(line) > 0:
+                            text = text + '|' + line.strip()
+                    self.canvas.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=(self.fontname, self.fontsize), anchor='nw')
+
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
