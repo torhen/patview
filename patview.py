@@ -3,6 +3,7 @@ from tkinter import ttk
 import pathlib
 import re
 import math
+import sys
 
 def make_pattern_dic(msi_path):
     with open(msi_path, encoding='latin1') as fin:
@@ -49,33 +50,48 @@ def make_pattern_dic(msi_path):
 
 
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, start_msi=''):
+        super().__init__()
+
+        
+        # --- root folder
+        if start_msi == '':
+            self.root_folder = '.'
+        else:
+            self.root_folder = pathlib.Path(start_msi).parent
+
         # ---- Settings ----
+        self.start_msi = start_msi
         self.start_geometry='1200x500'
         self.fontsize=10
-        self.root_folder = '.'
         self.padding = 0.04
 
-        super().__init__()
+
         self.title('Patview')
         self.geometry(self.start_geometry)
+        self.bind("<Configure>", self.on_resize)
 
+        # --- Canvas ---
+        self.canvas = tk.Canvas(self, bg='white')
 
         # --- Browser ----
         self.browser = ttk.Treeview(self)
-        self.browser.insert('', 'end', self.root_folder, text=pathlib.Path(self.root_folder).resolve())
-        self.browser.bind('<<TreeviewOpen>>', self.get_subs)
-        self.browser.bind("<<TreeviewSelect>>", self.get_files)
+        first_item = pathlib.Path(self.root_folder).resolve()
+        self.browser.insert('', 'end', first_item, text=first_item)
+        self.browser.bind('<<TreeviewOpen>>', self.add_sub_folders)
+        self.browser.bind("<<TreeviewSelect>>", self.add_file_names)
 
+        # Set focus and selection on the first item
+        self.browser.focus(first_item)              # Set keyboard focus
+        self.browser.selection_set(first_item)      # Highlight it visually
+        self.add_sub_folders()
 
         # --- Table ---
         self.table = ttk.Treeview(self, selectmode="extended")
         # self.table.heading('filename', text='filename')
-        self.table.bind("<<TreeviewSelect>>", self.draw_diagram)
+        self.table.bind("<<TreeviewSelect>>", self.draw)
+        self.add_file_names()
 
-        # --- Canvas ---
-        self.canvas = tk.Canvas(self)
- 
         # --- Layout ----
         self.browser.pack(side='left', expand=False, fill='both')
         self.table.pack(side='left', expand=False, fill='both', ipadx=50) # make it abit wider
@@ -85,7 +101,13 @@ class App(tk.Tk):
         self.draw_axis()
 
 
-    def get_subs(self, e):
+
+
+    def on_resize(self, e):
+        self.draw(e)
+    
+
+    def add_sub_folders(self, e=None):
         base = self.browser.focus()  
 
         for item in pathlib.Path(base).iterdir():
@@ -94,31 +116,42 @@ class App(tk.Tk):
 
 
 
-    def get_files(self, e):
+    def add_file_names(self, e=None):
         base = self.browser.focus()
 
-        # deleta all entries
+        # delete all entries
         for item in self.table.get_children():
             self.table.delete(item)
 
         # add files
         for item in pathlib.Path(base).iterdir():
             if item.is_file():
-                self.table.insert('', 'end', str(item), text=item.name)
+                item_str = str(item)
+                self.table.insert('', 'end', item_str, text=item.name)
 
-    def draw_diagram(self, e):
+        # Experiment
+        test = self.start_msi
+        self.table.focus(test)
+        self.table.selection_set(test)
+        self.table.see(test)
+        
+
+    def draw(self, e=None):
         self.canvas.delete("all")
         l = self.table.selection()
-        colors = ['black', 'red', 'blue', 'green']
+        colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
         
         self.draw_axis()
         w = self.canvas.winfo_width()
+        a = self.padding * w
 
         # draw antenna names
         for i, msi_file in enumerate(l):
-            color = colors[i % len(colors)]
-            self.draw_pattern(msi_file, color)
-            self.canvas.create_text(self.padding, w/2 + i * self.fontsize * 1.5, text=msi_file, fill=color, font=("Consolas", self.fontsize), anchor='nw')
+            if pathlib.Path(msi_file).suffix.lower() == '.msi':
+                color = colors[i % len(colors)]
+                self.draw_pattern(msi_file, color)
+                self.canvas.create_text(a, w/2 + i * self.fontsize * 1.5, text=pathlib.Path(msi_file).name, fill=color, font=("Consolas", self.fontsize), anchor='nw')
+
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
         x0 = center_x - radius
@@ -132,8 +165,8 @@ class App(tk.Tk):
         a = self.padding * w
 
         # helping rects
-        self.canvas.create_rectangle(0, 0, w/2, w/2)
-        self.canvas.create_rectangle(w/2, 0, w, w/2)
+        # self.canvas.create_rectangle(0, 0, w/2, w/2)
+        # self.canvas.create_rectangle(w/2, 0, w, w/2)
 
         # circles
         x0, y0 = w/4, w/4
@@ -173,7 +206,6 @@ class App(tk.Tk):
             y = r * math.sin(rad) + w/4
             a.append(x)
             a.append(y)
-            print(x, y)
         self.canvas.create_polygon(*a, fill='', outline=color)
 
         points = dic['VERTICAL']
@@ -188,8 +220,13 @@ class App(tk.Tk):
             y = r * math.sin(rad) + w/4
             a.append(x)
             a.append(y)
-            print(x, y)
         self.canvas.create_polygon(*a, fill='', outline=color)
 
-app = App()
-app.mainloop()
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        start_msi = sys.argv[1]
+    else:
+        start_msi = ''
+    print("start_msi:", start_msi)
+    app = App(start_msi)
+    app.mainloop()
