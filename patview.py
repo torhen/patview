@@ -102,8 +102,13 @@ class App(tk.Tk):
         self.browser.item(first_item, open=True)
 
         # --- Table ---
-        self.table = ttk.Treeview(self, selectmode="extended")
-        # self.table.heading('filename', text='filename')
+        self.table = ttk.Treeview(self, columns=['freq', 'tilt'], selectmode="extended")
+        self.table.heading('#0', text='filename')
+        self.table.heading('freq', text='freq')
+        self.table.heading('tilt', text='tilt')
+        self.table.column('#0', width=300, anchor='w')
+        self.table.column('tilt', width=10, anchor='w')
+        self.table.column('freq', width=20, anchor='w')
         self.table.bind("<<TreeviewSelect>>", self.draw)
         self.add_file_names()
 
@@ -139,10 +144,20 @@ class App(tk.Tk):
         for item in pathlib.Path(base).iterdir():
             if item.is_file():
                 item_str = str(item)
-                self.table.insert('', 'end', item_str, text=item.name)
+
+                r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
+                if r:
+                    gain = r.group(1)
+                else:
+                    gain = ''
+                r = re.match(r'.*_(\d{3,4})_', item.name)
+                if r:
+                    freq = r.group(1)
+                else:
+                    freq = ''
+                self.table.insert('', 'end', str(item), text=item.name, values=[freq, gain])
 
         # Select item at startup
-        print(self.start_msi)
         self.table.focus(self.start_msi)
         self.table.selection_set(self.start_msi)
         self.table.see(self.start_msi)
