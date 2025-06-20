@@ -77,6 +77,9 @@ class App(tk.Tk):
         self.start_geometry='1200x500'
         self.fontsize=10
         self.padding = 0.04
+        self.ascending_0 = True
+        self.ascending_1 = True
+        self.ascending_2 = True
 
 
         self.title('Patview')
@@ -91,7 +94,7 @@ class App(tk.Tk):
         first_item = pathlib.Path(self.root_folder).resolve()
         self.browser.insert('', 'end', first_item, text=first_item)
         self.browser.bind('<<TreeviewOpen>>', self.add_sub_folders)
-        self.browser.bind("<<TreeviewSelect>>", self.add_file_names)
+        self.browser.bind("<<TreeviewSelect>>", self.get_and_add_files)
 
         # Set focus and selection on the first item
         self.browser.focus(first_item)              # Set keyboard focus
@@ -110,7 +113,8 @@ class App(tk.Tk):
         self.table.column('tilt', width=10, anchor='w')
         self.table.column('freq', width=20, anchor='w')
         self.table.bind("<<TreeviewSelect>>", self.draw)
-        self.add_file_names()
+        self.table.bind('<Button-1>', self.on_treeview_click)
+        self.get_and_add_files()
 
         # --- Layout ----
         self.browser.pack(side='left', expand=False, fill='both')
@@ -120,6 +124,35 @@ class App(tk.Tk):
         # axis
         self.draw_axis()
 
+    def on_treeview_click(self, e):
+        region = self.table.identify_region(e.x, e.y)
+        if region == 'heading':
+            column = self.table.identify_column(e.x)
+            if column == '#0':
+                if self.ascending_0 == True:
+                    self.sort_files('name', ascending=False)
+                    self.ascending_0 = False
+                else:
+                    self.sort_files('name', ascending=True)
+                    self.ascending_0 = True
+
+            if column == '#1':
+                if self.ascending_1 == True:
+                    self.sort_files('freq', ascending=False)
+                    self.ascending_1 = False
+                else:
+                    self.sort_files('freq', ascending=True)
+                    self.ascending_1 = True
+
+            if column == '#2':
+                if self.ascending_2 == True:
+                    self.sort_files('tilt', ascending=False)
+                    self.ascending_2 = False
+                else:
+                    self.sort_files('tilt', ascending=True)
+                    self.ascending_2 = True
+
+            self.add_files()
 
     def on_resize(self, e):
         self.draw(e)
@@ -133,29 +166,49 @@ class App(tk.Tk):
                 self.browser.insert(base, 'end', str(item), text=item.name)
 
 
-    def add_file_names(self, e=None):
+    def get_and_add_files(self, e=None):
         base = self.browser.focus()
 
-        # delete all entries
-        for item in self.table.get_children():
-            self.table.delete(item)
-
-        # add files
+         # add files
+        self.files = []
         for item in pathlib.Path(base).iterdir():
             if item.is_file():
                 item_str = str(item)
 
                 r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
                 if r:
-                    gain = r.group(1)
+                    tilt = r.group(1)
                 else:
-                    gain = ''
+                    tilt = ''
                 r = re.match(r'.*_(\d{3,4})_', item.name)
                 if r:
                     freq = r.group(1)
                 else:
                     freq = ''
-                self.table.insert('', 'end', str(item), text=item.name, values=[freq, gain])
+
+                row = {
+                    'path' :str(item),
+                    'name' : item.name,
+                    'freq' : freq,
+                    'tilt' : tilt
+                }
+
+                self.files.append(row)
+
+        self.sort_files('name', ascending=True)
+        self.add_files()
+
+    def sort_files(self, columns, ascending):
+        self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
+
+    def add_files(self):
+
+       # delete all entries
+        for item in self.table.get_children():
+            self.table.delete(item)
+        # sort table
+        for row in self.files:        
+            self.table.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
 
         # Select item at startup
         self.table.focus(self.start_msi)
