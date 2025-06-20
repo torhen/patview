@@ -48,6 +48,18 @@ def make_pattern_dic(msi_path):
     dic['VERTICAL'] = vert
     return dic
 
+def read_header(msi_path):
+    r = ''
+    with open(msi_path) as fin:
+        for i in range(50):
+            line = fin.readline()
+            line = line.strip('\n')
+            line = line.replace(' ', ':', 1)
+            r = r + line + '|'
+            if line.startswith('HORIZONTAL'):
+                break
+    return r
+
 
 class App(tk.Tk):
     def __init__(self, start_msi=''):
@@ -85,6 +97,9 @@ class App(tk.Tk):
         self.browser.focus(first_item)              # Set keyboard focus
         self.browser.selection_set(first_item)      # Highlight it visually
         self.add_sub_folders()
+        # Expand the first (root) item
+        first_item = self.browser.get_children()[0]
+        self.browser.item(first_item, open=True)
 
         # --- Table ---
         self.table = ttk.Treeview(self, selectmode="extended")
@@ -101,19 +116,16 @@ class App(tk.Tk):
         self.draw_axis()
 
 
-
-
     def on_resize(self, e):
         self.draw(e)
     
 
     def add_sub_folders(self, e=None):
-        base = self.browser.focus()  
+        base = self.browser.focus()
 
         for item in pathlib.Path(base).iterdir():
             if item.is_dir() and str(item) not in self.browser.get_children(base):
                 self.browser.insert(base, 'end', str(item), text=item.name)
-
 
 
     def add_file_names(self, e=None):
@@ -129,11 +141,11 @@ class App(tk.Tk):
                 item_str = str(item)
                 self.table.insert('', 'end', item_str, text=item.name)
 
-        # Experiment
-        test = self.start_msi
-        self.table.focus(test)
-        self.table.selection_set(test)
-        self.table.see(test)
+        # Select item at startup
+        print(self.start_msi)
+        self.table.focus(self.start_msi)
+        self.table.selection_set(self.start_msi)
+        self.table.see(self.start_msi)
         
 
     def draw(self, e=None):
@@ -150,7 +162,8 @@ class App(tk.Tk):
             if pathlib.Path(msi_file).suffix.lower() == '.msi':
                 color = colors[i % len(colors)]
                 self.draw_pattern(msi_file, color)
-                self.canvas.create_text(a, w/2 + i * self.fontsize * 1.5, text=pathlib.Path(msi_file).name, fill=color, font=("Consolas", self.fontsize), anchor='nw')
+                text = pathlib.Path(msi_file).name + ': ' + read_header(msi_file)
+                self.canvas.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=("Consolas", self.fontsize), anchor='nw')
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
@@ -158,33 +171,30 @@ class App(tk.Tk):
         y0 = center_y - radius
         x1 = center_x + radius
         y1 = center_y + radius
-        self.canvas.create_oval(x0, y0, x1, y1, **kwargs)
+        return self.canvas.create_oval(x0, y0, x1, y1, **kwargs)
 
     def draw_axis(self):
         w = self.canvas.winfo_width()
         a = self.padding * w
 
-        # helping rects
-        # self.canvas.create_rectangle(0, 0, w/2, w/2)
-        # self.canvas.create_rectangle(w/2, 0, w, w/2)
-
         # circles
         x0, y0 = w/4, w/4
         r = w/4 - a
         for n in range(1, 4):
-            self.draw_circle(x0, y0, r/3 * n, outline="#aaa")
+            self.draw_circle(x0, y0, r/3 * n, outline="#aaa",dash=(1, 3))
+        self.draw_circle(x0, y0, 0.9 * r, outline="#aaa",dash=(1,1)) # 3dB
 
         x0, y0 = w*3/4, w/4
         r = w/4 - a
         for n in range(1, 4):
-            self.draw_circle(x0, y0, r/3 * n, outline="#aaa")
+            self.draw_circle(x0, y0, r/3 * n, outline="#aaa",dash=(1, 3))
+        self.draw_circle(x0, y0, 0.9 * r, outline="#aaa",dash=(1,1)) # 3dB
 
         # axis
         self.canvas.create_line(a, w/4, w/2 -a, w/4, fill='#aaa')
         self.canvas.create_line(w/4, a, w/4, w/2-a, fill='#aaa')
 
-    
-        self.canvas.create_line(w/2+3/a, w/4, w/2+w/2 -a, w/4, fill='#aaa')
+        self.canvas.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa')
         self.canvas.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa')
        
     def draw_pattern(self, msi_file, color):
