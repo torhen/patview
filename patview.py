@@ -191,11 +191,11 @@ class App(tk.Tk):
         self.draw_circle(x0, y0, 0.9 * r, outline="#aaa",dash=(1,1)) # 3dB
 
         # axis
-        self.canvas.create_line(a, w/4, w/2 -a, w/4, fill='#aaa')
-        self.canvas.create_line(w/4, a, w/4, w/2-a, fill='#aaa')
+        self.canvas.create_line(a, w/4, w/2 -a, w/4, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(w/4, a, w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
-        self.canvas.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa')
-        self.canvas.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa')
+        self.canvas.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
        
     def draw_pattern(self, msi_file, color):
 
