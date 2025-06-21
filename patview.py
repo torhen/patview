@@ -99,6 +99,7 @@ class FileList(ttk.Treeview):
         self.files = []
         self.parent_window = parent_window
         self.drawing = drawing
+        self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
         super().__init__(parent_window)
 
         self['columns'] = ('freq', 'tilt')
@@ -112,13 +113,11 @@ class FileList(ttk.Treeview):
         self.column('tilt', width=10, anchor='w')
         self.column('freq', width=20, anchor='w')
         self.bind("<<TreeviewSelect>>", self.draw)
-        # self.table.bind('<Button-1>', self.on_treeview_click)
+        self.bind('<Button-1>', self.on_header_click)
 
     def get_files(self, folder):
-        # delete all entries
-        for item in self.get_children():
-            self.delete(item)
 
+        self.files = []
         for item in pathlib.Path(folder).iterdir():
             if item.is_file():
                 r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
@@ -139,11 +138,48 @@ class FileList(ttk.Treeview):
                     'tilt' : tilt
                 }
 
-                self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+                self.files.append(row)
 
-    # def sort_files(self, columns, ascending):
-    #     self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
+        # delete all entries
+        for item in self.get_children():
+            self.delete(item)
 
+        # add all entries
+        for row in self.files:
+            self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+
+    def sort_files(self, columns, ascending):
+        self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
+
+    def on_header_click(self,e):               
+        region = self.identify_region(e.x, e.y)
+        if region == 'heading':
+            column = self.identify_column(e.x)
+
+            if column == '#0':
+                self.sort_files('name', self.sort_order[column])
+                self.sort_order[column] = not self.sort_order[column]
+
+            if column == '#1':
+                self.sort_files('freq', self.sort_order[column])
+                self.sort_order[column] = not self.sort_order[column]
+
+            if column == '#2':
+                self.sort_files('tilt', self.sort_order[column])
+                self.sort_order[column] = not self.sort_order[column]
+
+        # delete all entries
+        for item in self.get_children():
+            self.delete(item)
+
+        # add all entries
+        for row in self.files:
+            self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+
+    def select_file(self, filename):
+        self.selection_set(filename)  # Use the iid of the item you want to select
+        self.focus(filename)          # Optional: Set keyboard focus to it
+        self.see(filename)            # Optional: Scroll to the item
 
     def draw(self, e):
         self.drawing.draw(self.selection())
@@ -268,6 +304,7 @@ class Drawing(tk.Canvas):
 # ------------------- APP -------------------------------
 class App(tk.Tk):
     def __init__(self, start_msi):
+
         # ------ start argument ------
         self.start_msi = start_msi
 
@@ -278,10 +315,6 @@ class App(tk.Tk):
 
         # ---- Settings ----
         self.start_geometry='1200x500'
-
-        self.ascending_0 = True
-        self.ascending_1 = True
-        self.ascending_2 = True
 
         # ---- start tkinter ----
         super().__init__()
@@ -296,15 +329,15 @@ class App(tk.Tk):
         self.frame = ttk.Frame()
 
         # ----------- FileList ---------
-        self.table = FileList(self, self.drawing)
-        self.table.get_files(self.root_folder)
+        self.file_table = FileList(self, self.drawing)
+        self.file_table.get_files(self.root_folder)
 
         # --------- Browser1 -------------------
-        self.browser1 = FolderBrowser(self.frame, self.table)
+        self.browser1 = FolderBrowser(self.frame, self.file_table)
         self.browser1.set_folder(self.root_folder)
 
         # ------------ Browser2 ---------
-        self.browser2 = FolderBrowser(self.frame, self.table)
+        self.browser2 = FolderBrowser(self.frame, self.file_table)
         self.browser2.set_folder(self.root_folder)
    
         # --- Layout ----
@@ -312,47 +345,12 @@ class App(tk.Tk):
         self.browser2.pack(ipadx=100, expand=True, fill='both') 
 
         self.frame.pack(side='left', expand=False, fill='both')
-        self.table.pack(side='left', expand=False, fill='both', ipadx=50)
+        self.file_table.pack(side='left', expand=False, fill='both', ipadx=50)
         self.drawing.pack(side='left', expand=True, fill='both')
 
-    def on_treeview_click(self, e):
-        region = self.table.identify_region(e.x, e.y)
-        if region == 'heading':
-            column = self.table.identify_column(e.x)
-            if column == '#0':
-                if self.ascending_0 == True:
-                    self.sort_files('name', ascending=False)
-                    self.ascending_0 = False
-                else:
-                    self.sort_files('name', ascending=True)
-                    self.ascending_0 = True
+        # initial drawing after winow is shown
+        self.after(100, lambda:  self.file_table.select_file(self.start_msi))
 
-            if column == '#1':
-                if self.ascending_1 == True:
-                    self.sort_files('freq', ascending=False)
-                    self.ascending_1 = False
-                else:
-                    self.sort_files('freq', ascending=True)
-                    self.ascending_1 = True
-
-            if column == '#2':
-                if self.ascending_2 == True:
-                    self.sort_files('tilt', ascending=False)
-                    self.ascending_2 = False
-                else:
-                    self.sort_files('freq', ascending=True)
-                    self.ascending_2 = True
-
-            self.add_files()
-
-  
-
-    def add_sub_folders(self, e=None):
-        base = self.browser1.focus()
-
-        for item in pathlib.Path(base).iterdir():
-            if item.is_dir() and str(item) not in self.browser1.get_children(base):
-                self.browser1.insert(base, 'end', str(item), text=item.name)  
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
