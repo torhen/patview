@@ -101,11 +101,12 @@ class FileList(ttk.Treeview):
         self.drawing = drawing
         self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
         super().__init__(parent_window)
-
+        self.config(selectmode='extended')
+        
         self['columns'] = ('freq', 'tilt')
         self.heading('freq', text='Frequency')
         self.heading('tilt', text='Tilt')
-        self.config(selectmode='extended')
+        
         self.heading('#0', text='filename')
         self.heading('freq', text='freq')
         self.heading('tilt', text='tilt')
@@ -168,13 +169,13 @@ class FileList(ttk.Treeview):
                 self.sort_files('tilt', self.sort_order[column])
                 self.sort_order[column] = not self.sort_order[column]
 
-        # delete all entries
-        for item in self.get_children():
-            self.delete(item)
+            # delete all entries
+            for item in self.get_children():
+                self.delete(item)
 
-        # add all entries
-        for row in self.files:
-            self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+            # add all entries
+            for row in self.files:
+                self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
 
     def select_file(self, filename):
         self.selection_set(filename)  # Use the iid of the item you want to select
