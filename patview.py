@@ -61,27 +61,26 @@ def read_header(msi_path):
 
 
 class App(tk.Tk):
-    def __init__(self, start_msi=''):
-        super().__init__()
+    def __init__(self, start_msi):
+        # ------ start argument ------
+        self.start_msi = start_msi
 
-        
-        # --- root folder
-        if start_msi == '':
-            self.root_folder = '.'
-        else:
+        if start_msi != '':
             self.root_folder = pathlib.Path(start_msi).parent
+        else:
+            self.root_folder = pathlib.Path('.').resolve()
 
         # ---- Settings ----
-        self.start_msi = start_msi
         self.start_geometry='1200x500'
         self.fontname = "Consolas"
         self.fontsize = 10
-        self.padding = 0.04
+        self.padding = 0.02
         self.ascending_0 = True
         self.ascending_1 = True
         self.ascending_2 = True
 
-
+        # ---- start tkinter ----
+        super().__init__()
         self.title('Patview')
         self.geometry(self.start_geometry)
         self.bind("<Configure>", self.on_resize)
@@ -113,8 +112,6 @@ class App(tk.Tk):
         self.browser.focus(item)              # Set keyboard focus
         self.browser.selection_set(item)      # Highlight it visually
 
-
-
         # # Set focus and selection on the first item
         self.add_sub_folders()
         # # Expand the first (root) item
@@ -132,13 +129,11 @@ class App(tk.Tk):
         self.table.bind("<<TreeviewSelect>>", self.draw)
         self.table.bind('<Button-1>', self.on_treeview_click)
 
-
         self.get_and_add_files()
  
 
-
         # --- Layout ----
-        self.browser.pack(side='left', expand=True, fill='both')
+        self.browser.pack(side='left', expand=False, fill='both', ipadx=100)
         self.table.pack(side='left', expand=False, fill='both', ipadx=50) # make it abit wider
         self.canvas.pack(side='left', expand=True, fill='both')
 
@@ -356,6 +351,5 @@ if __name__ == '__main__':
         start_msi = sys.argv[1]
     else:
         start_msi = ''
-    print("start_msi:", start_msi)
     app = App(start_msi)
     app.mainloop()
