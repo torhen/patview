@@ -88,11 +88,14 @@ class App(tk.Tk):
         # --- Canvas ---
         self.canvas = tk.Canvas(self, bg='white')
 
-        # --- Browser ----
-        self.browser = ttk.Treeview(self)
+        # ---- frame for the left
+        self.frame = ttk.Frame()
+
+        # --------- Browser1 -------------------
+        self.browser1 = ttk.Treeview(self.frame)
         first_item = pathlib.Path(self.root_folder).resolve()
 
-        # --- add the full path till the file
+
         path_parts = self.root_folder.parts
         item = ''
         for i in range(1, len(path_parts) + 1):
@@ -102,21 +105,65 @@ class App(tk.Tk):
             else:
                 entry_text = full_path.name
             
-            item = self.browser.insert(item, 'end', str(full_path), text=entry_text)
-            self.browser.item(item, open=True)
+            item = self.browser1.insert(item, 'end', str(full_path), text=entry_text)
+            self.browser1.item(item, open=True)
 
-        self.browser.bind('<<TreeviewOpen>>', self.add_sub_folders)
-        self.browser.bind("<<TreeviewSelect>>", self.get_and_add_files)
+        self.browser1.bind('<<TreeviewOpen>>', self.add_sub_folders)
+        self.browser1.bind("<<TreeviewSelect>>", self.get_and_add_files)
+
+        # ------------ Browser1 ---------
+        self.browser1 = ttk.Treeview(self.frame)
+        first_item = pathlib.Path(self.root_folder).resolve()
+
+        path_parts = self.root_folder.parts
+        item = ''
+        for i in range(1, len(path_parts) + 1):
+            full_path = pathlib.Path(*path_parts[0:i])
+            if  full_path.name == '':
+                entry_text = full_path
+            else:
+                entry_text = full_path.name
+            
+            item = self.browser1.insert(item, 'end', str(full_path), text=entry_text)
+            self.browser1.item(item, open=True)
+
+        self.browser1.bind('<<TreeviewOpen>>', self.add_sub_folders)
+        self.browser1.bind("<<TreeviewSelect>>", self.get_and_add_files)
 
         # select the last item
-        self.browser.focus(item)              # Set keyboard focus
-        self.browser.selection_set(item)      # Highlight it visually
+        self.browser1.focus(item)              # Set keyboard focus
+        self.browser1.selection_set(item)      # Highlight it visually
 
         # # Set focus and selection on the first item
         self.add_sub_folders()
-        # # Expand the first (root) item
-        # first_item = self.browser.get_children()[0]
-        # self.browser.item(first_item, open=True)
+
+
+        # ------------ Browser2 ---------
+        self.browser2 = ttk.Treeview(self.frame)
+        first_item = pathlib.Path(self.root_folder).resolve()
+
+        path_parts = self.root_folder.parts
+        item = ''
+        for i in range(1, len(path_parts) + 1):
+            full_path = pathlib.Path(*path_parts[0:i])
+            if  full_path.name == '':
+                entry_text = full_path
+            else:
+                entry_text = full_path.name
+            
+            item = self.browser2.insert(item, 'end', str(full_path), text=entry_text)
+            self.browser2.item(item, open=True)
+
+        self.browser2.bind('<<TreeviewOpen>>', self.add_sub_folders)
+        self.browser2.bind("<<TreeviewSelect>>", self.get_and_add_files)
+
+        # select the last item
+        self.browser2.focus(item)              # Set keyboard focus
+        self.browser2.selection_set(item)      # Highlight it visually
+
+        # # Set focus and selection on the first item
+        self.add_sub_folders()
+
 
         # --- Table ---
         self.table = ttk.Treeview(self, columns=['freq', 'tilt'], selectmode="extended")
@@ -133,7 +180,10 @@ class App(tk.Tk):
  
 
         # --- Layout ----
-        self.browser.pack(side='left', expand=False, fill='both', ipadx=100)
+        self.browser1.pack(ipadx=100, expand=True, fill='both') #side='left', expand=False, fill='both', ipadx=100)
+        self.browser2.pack(ipadx=100, expand=True, fill='both') #side='left', expand=False, fill='both', ipadx=100)
+
+        self.frame.pack(side='left', expand=True, fill='both')
         self.table.pack(side='left', expand=False, fill='both', ipadx=50) # make it abit wider
         self.canvas.pack(side='left', expand=True, fill='both')
 
@@ -177,15 +227,15 @@ class App(tk.Tk):
     
 
     def add_sub_folders(self, e=None):
-        base = self.browser.focus()
+        base = self.browser1.focus()
 
         for item in pathlib.Path(base).iterdir():
-            if item.is_dir() and str(item) not in self.browser.get_children(base):
-                self.browser.insert(base, 'end', str(item), text=item.name)
+            if item.is_dir() and str(item) not in self.browser1.get_children(base):
+                self.browser1.insert(base, 'end', str(item), text=item.name)
 
 
     def get_and_add_files(self, e=None):
-        base = self.browser.focus()
+        base = self.browser1.focus()
         
          # add files
         self.files = []
