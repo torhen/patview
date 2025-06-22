@@ -157,7 +157,8 @@ class FileList(ttk.Treeview):
 
         # add all entries
         for row in self.files:
-            self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+            if row['path'] not in self.get_children(''):
+                self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
