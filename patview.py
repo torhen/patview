@@ -6,6 +6,7 @@ import pathlib
 import re
 import math
 import sys
+from tkinter import messagebox
 
 def make_pattern_dic(msi_path):
     with open(msi_path, encoding='latin1') as fin:
@@ -123,8 +124,6 @@ class FileList(ttk.Treeview):
 
         self.bind("<<TreeviewSelect>>", self.draw)
         self.bind('<Button-1>', self.on_header_click)
-        self.bind('<Button-3>', self.on_right_click)
-
         self.filter = ".+"
 
     def get_files(self, folder, flag):
@@ -174,7 +173,6 @@ class FileList(ttk.Treeview):
             if row['path'] not in self.get_children(''):
                 self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
-
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
 
@@ -215,12 +213,9 @@ class FileList(ttk.Treeview):
     def draw(self, e):
         self.drawing.draw(self.selection())
 
-    def on_right_click(self, e):
-        user_input = simpledialog.askstring("Input", "Enter filter expression:",initialvalue=self.filter)
-        if user_input is not None:
-            self.filter = user_input
 
-        self.heading("#0", text= 'filename ' + self.filter)
+    def set_filter(self, filter_str):
+        self.filter = filter_str
         self.add_files()
  
  
@@ -372,34 +367,48 @@ class App(tk.Tk):
         self.title('Patview')
         self.geometry(self.start_geometry)
 
+        # ---- frames for left and middle
+        self.frame1 = ttk.Frame()
+        self.frame2 = ttk.Frame()
+        self.frame3 = ttk.Frame()
+
         # --- Drawing ---
-        self.drawing = Drawing(self)
+        self.drawing = Drawing(self.frame3)
+        self.drawing.pack()
 
-        # ---- frame for the left
-        self.frame = ttk.Frame()
+        # ----------- Filter and FileList ---------
+        self.filter_var = tk.StringVar(value='.+')
+        self.filter_var.trace_add("write", self.on_filter_change)
+        self.filter1 = tk.Entry(self.frame2, textvariable=self.filter_var)
+        self.filter1.pack(fill='x')
 
-        # ----------- FileList ---------
-        self.file_table = FileList(self, self.drawing)
+        self.file_table = FileList(self.frame2, self.drawing)
+        self.file_table.pack(side='left', expand=False, fill='both', ipadx=50)
 
         # --------- Browser1 -------------------
-        self.browser1 = FolderBrowser(self.frame, self.file_table, flag='A')
+        self.browser1 = FolderBrowser(self.frame1, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
+        self.browser1.pack(ipadx=100, expand=True, fill='both')
 
         # ------------ Browser2 ---------
-        self.browser2 = FolderBrowser(self.frame, self.file_table, flag='B')
+
+        self.browser2 = FolderBrowser(self.frame1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
-   
-        # --- Layout ----
-        self.browser1.pack(ipadx=100, expand=True, fill='both')
         self.browser2.pack(ipadx=100, expand=True, fill='both') 
 
-        self.frame.pack(side='left', expand=False, fill='both')
-        self.file_table.pack(side='left', expand=False, fill='both', ipadx=50)
-        self.drawing.pack(side='left', expand=True, fill='both')
+        # --- Layout ----
+        self.frame1.pack(side='left', expand=False, fill='both')
+        self.frame2.pack(side='left', expand=False, fill='both')
+        self.frame3.pack(side='left', expand=True, fill='both')
 
-        # -------- initial drawing after winow is shown --------
-        self.after(200, lambda:  self.file_table.select_file(self.start_msi))
+        # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
+        self.file_table.select_file(self.start_msi)
+
+
+    def on_filter_change(self, *args):
+        filter = self.filter_var.get()
+        self.file_table.set_filter(filter)
 
 
 if __name__ == '__main__':
