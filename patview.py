@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import font
+from tkinter import simpledialog
 import pathlib
 import re
 import math
@@ -122,9 +123,18 @@ class FileList(ttk.Treeview):
 
         self.bind("<<TreeviewSelect>>", self.draw)
         self.bind('<Button-1>', self.on_header_click)
+        self.bind('<Button-3>', self.on_right_click)
+
+        self.filter = ".+"
 
     def get_files(self, folder, flag):
+        self.read_files(folder, flag)
+        self.add_files()
 
+
+    def read_files(self, folder, flag):
+
+        # delete files only from source FileBrowser
         self.files = [row for row in self.files if row['flag'] != flag]
 
 
@@ -151,14 +161,19 @@ class FileList(ttk.Treeview):
 
                 self.files.append(row)
 
+    def add_files(self):
+        # Apply filter
+        filtered = [f for f in self.files if re.match(self.filter, f['name'])]
+
         # delete all entries
         for item in self.get_children():
             self.delete(item)
 
         # add all entries
-        for row in self.files:
+        for row in filtered:
             if row['path'] not in self.get_children(''):
                 self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
@@ -199,6 +214,14 @@ class FileList(ttk.Treeview):
 
     def draw(self, e):
         self.drawing.draw(self.selection())
+
+    def on_right_click(self, e):
+        user_input = simpledialog.askstring("Input", "Enter filter expression:",initialvalue=self.filter)
+        if user_input is not None:
+            self.filter = user_input
+
+        self.heading("#0", text= 'filename ' + self.filter)
+        self.add_files()
  
  
 class Drawing(tk.Canvas):
@@ -207,8 +230,15 @@ class Drawing(tk.Canvas):
         self.fontname = "Consolas"
         self.fontsize = 10
         self.padding = 0.02
+        self.files = []
 
         super().__init__(parent_window)
+        self.bind("<Configure>", self.on_resize)
+
+    def on_resize(self, e):
+        self.delete("all")
+        self.draw_axis()
+        self.draw_diagrams()
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
@@ -242,15 +272,18 @@ class Drawing(tk.Canvas):
         self.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
     def draw(self, files):
+            self.set_files(files)
             self.delete("all")
-            l = files
-            colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
-            
             self.draw_axis()
+            self.draw_diagrams()
+
+    def draw_diagrams(self):
+            colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
+           
             w = self.winfo_width()
             a = self.padding * w
 
-            for i, msi_file in enumerate(l):
+            for i, msi_file in enumerate(self.files):
                 if pathlib.Path(msi_file).suffix.lower() == '.msi':
                     color = colors[i % len(colors)]
                     # draw pattern
@@ -263,7 +296,7 @@ class Drawing(tk.Canvas):
                     header.insert(0, filename)
 
                     # lines for one pattern
-                    if len(l) <= 1: 
+                    if len(self.files) <= 1: 
                         for k, line in enumerate(header):
                             line = line.strip()
                             if k==0:
@@ -281,7 +314,9 @@ class Drawing(tk.Canvas):
                                 text = text + '|' + line.strip()
                         self.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=(self.fontname, self.fontsize), anchor='nw')
 
-       
+    def set_files(self, files):
+        self.files = files
+
     def draw_pattern(self, msi_file, color):
 
         w = self.winfo_width()
@@ -336,7 +371,6 @@ class App(tk.Tk):
         super().__init__()
         self.title('Patview')
         self.geometry(self.start_geometry)
-        # self.bind("<Configure>", self.on_resize)
 
         # --- Drawing ---
         self.drawing = Drawing(self)
@@ -364,7 +398,7 @@ class App(tk.Tk):
         self.drawing.pack(side='left', expand=True, fill='both')
 
         # -------- initial drawing after winow is shown --------
-        self.after(100, lambda:  self.file_table.select_file(self.start_msi))
+        self.after(200, lambda:  self.file_table.select_file(self.start_msi))
         self.file_table.get_files(self.root_folder, 'A')
 
 
