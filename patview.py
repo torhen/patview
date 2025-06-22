@@ -60,10 +60,11 @@ def read_header(msi_path):
     return l
 
 class FolderBrowser(ttk.Treeview):
-    def __init__(self, parent_window, file_list):
+    def __init__(self, parent_window, file_list, flag):
         super().__init__(parent_window)
         self.mainwindow = parent_window
         self.file_list = file_list
+        self.flag = flag
         self.files = []
 
         self.bind('<<TreeviewOpen>>', self.add_sub_folders)
@@ -91,7 +92,7 @@ class FolderBrowser(ttk.Treeview):
 
     def get_and_add_files(self, e):
         folder = self.focus()
-        self.file_list.get_files(folder)
+        self.file_list.get_files(folder, flag=self.flag)
 
 
 class FileList(ttk.Treeview):
@@ -99,28 +100,36 @@ class FileList(ttk.Treeview):
         self.files = []
         self.parent_window = parent_window
         self.drawing = drawing
+        self.flag = 'A'
         self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
         super().__init__(parent_window)
         self.config(selectmode='extended')
         
-        self['columns'] = ('freq', 'tilt')
+        self['columns'] = ('flag', 'freq', 'tilt')
+        self.heading('flag', text='flag')
         self.heading('freq', text='Frequency')
         self.heading('tilt', text='Tilt')
         
         self.heading('#0', text='filename')
+        self.heading('flag', text='flag')
         self.heading('freq', text='freq')
         self.heading('tilt', text='tilt')
+
         self.column('#0', width=300, anchor='w')
+        self.column('flag', width=10, anchor='w')
         self.column('tilt', width=10, anchor='w')
         self.column('freq', width=20, anchor='w')
+
         self.bind("<<TreeviewSelect>>", self.draw)
         self.bind('<Button-1>', self.on_header_click)
 
-    def get_files(self, folder):
+    def get_files(self, folder, flag):
 
-        self.files = []
+        self.files = [row for row in self.files if row['flag'] != flag]
+
+
         for item in pathlib.Path(folder).iterdir():
-            if item.is_file():
+            if item.is_file() and not item in self.get_children(''):
                 r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
                 if r:
                     tilt = r.group(1)
@@ -134,6 +143,7 @@ class FileList(ttk.Treeview):
 
                 row = {
                     'path' :str(item),
+                    'flag' : flag,
                     'name' : item.name,
                     'freq' : freq,
                     'tilt' : tilt
@@ -147,7 +157,7 @@ class FileList(ttk.Treeview):
 
         # add all entries
         for row in self.files:
-            self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+            self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
@@ -162,10 +172,14 @@ class FileList(ttk.Treeview):
                 self.sort_order[column] = not self.sort_order[column]
 
             if column == '#1':
-                self.sort_files('freq', self.sort_order[column])
+                self.sort_files('flag', self.sort_order[column])
                 self.sort_order[column] = not self.sort_order[column]
 
             if column == '#2':
+                self.sort_files('freq', self.sort_order[column])
+                self.sort_order[column] = not self.sort_order[column]
+
+            if column == '#3':
                 self.sort_files('tilt', self.sort_order[column])
                 self.sort_order[column] = not self.sort_order[column]
 
@@ -175,12 +189,12 @@ class FileList(ttk.Treeview):
 
             # add all entries
             for row in self.files:
-                self.insert('', 'end', row['path'], text=row['name'], values= [row['freq'], row['tilt'] ])
+                self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def select_file(self, filename):
-        self.selection_set(filename)  # Use the iid of the item you want to select
-        self.focus(filename)          # Optional: Set keyboard focus to it
-        self.see(filename)            # Optional: Scroll to the item
+        self.selection_set(filename)  
+        self.focus(filename)        
+        self.see(filename) 
 
     def draw(self, e):
         self.drawing.draw(self.selection())
@@ -331,14 +345,13 @@ class App(tk.Tk):
 
         # ----------- FileList ---------
         self.file_table = FileList(self, self.drawing)
-        self.file_table.get_files(self.root_folder)
 
         # --------- Browser1 -------------------
-        self.browser1 = FolderBrowser(self.frame, self.file_table)
+        self.browser1 = FolderBrowser(self.frame, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
         # ------------ Browser2 ---------
-        self.browser2 = FolderBrowser(self.frame, self.file_table)
+        self.browser2 = FolderBrowser(self.frame, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
    
         # --- Layout ----
@@ -349,8 +362,9 @@ class App(tk.Tk):
         self.file_table.pack(side='left', expand=False, fill='both', ipadx=50)
         self.drawing.pack(side='left', expand=True, fill='both')
 
-        # initial drawing after winow is shown
+        # -------- initial drawing after winow is shown --------
         self.after(100, lambda:  self.file_table.select_file(self.start_msi))
+        self.file_table.get_files(self.root_folder, 'A')
 
 
 if __name__ == '__main__':
