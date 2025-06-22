@@ -374,7 +374,7 @@ class App(tk.Tk):
 
         # --- Drawing ---
         self.drawing = Drawing(self.frame3)
-        self.drawing.pack()
+        self.drawing.pack(expand=True, fill='both')
 
         # ----------- Filter and FileList ---------
         self.filter_var = tk.StringVar(value='.+')
@@ -391,7 +391,6 @@ class App(tk.Tk):
         self.browser1.pack(ipadx=100, expand=True, fill='both')
 
         # ------------ Browser2 ---------
-
         self.browser2 = FolderBrowser(self.frame1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
         self.browser2.pack(ipadx=100, expand=True, fill='both') 
