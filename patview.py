@@ -197,12 +197,15 @@ class FileList(ttk.Treeview):
                 self.sort_files('tilt', self.sort_order[column])
                 self.sort_order[column] = not self.sort_order[column]
 
+
+            filtered = [f for f in self.files if re.match(self.filter, f['name'])]
+
             # delete all entries
             for item in self.get_children():
                 self.delete(item)
 
             # add all entries
-            for row in self.files:
+            for row in filtered:
                 self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def select_file(self, filename):
