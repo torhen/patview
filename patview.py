@@ -6,7 +6,7 @@ import pathlib
 import re
 import math
 import sys
-from tkinter import messagebox
+import os
 
 def make_pattern_dic(msi_path):
     with open(msi_path, encoding='latin1') as fin:
@@ -124,6 +124,7 @@ class FileList(ttk.Treeview):
 
         self.bind("<<TreeviewSelect>>", self.draw)
         self.bind('<Button-1>', self.on_header_click)
+        self.bind("<Double-1>", self.on_double_click)
         self.filter = ".+"
 
     def get_files(self, folder, flag):
@@ -207,6 +208,10 @@ class FileList(ttk.Treeview):
             # add all entries
             for row in filtered:
                 self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+
+    def on_double_click(self, e):
+        item_id = self.identify_row(e.y)
+        os.system('"' + item_id + '"')
 
     def select_file(self, filename):
         self.selection_set(filename)  
