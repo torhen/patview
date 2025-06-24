@@ -211,7 +211,8 @@ class FileList(ttk.Treeview):
 
     def on_double_click(self, e):
         item_id = self.identify_row(e.y)
-        os.system('"' + item_id + '"')
+        if not item_id.lower().endswith('.msi'):
+            os.system('"' + item_id + '"')
 
     def select_file(self, filename):
         self.selection_set(filename)  
