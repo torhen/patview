@@ -61,16 +61,22 @@ def read_header(msi_path):
                 return l
     return l
 
-class FolderBrowser(ttk.Treeview):
+class FolderBrowser(tk.Frame):
     def __init__(self, parent_window, file_list, flag):
         super().__init__(parent_window)
         self.mainwindow = parent_window
+        self.tree = ttk.Treeview(self)
+        self.tree.pack(ipadx=100, expand=True, fill='both')
+
         self.file_list = file_list
         self.flag = flag
         self.files = []
 
-        self.bind('<<TreeviewOpen>>', self.add_sub_folders)
-        self.bind("<<TreeviewSelect>>", self.get_and_add_files)
+        self.pack()
+
+        self.tree.bind('<<TreeviewOpen>>', self.add_sub_folders)
+        self.tree.bind("<<TreeviewSelect>>", self.get_and_add_files)
+        self.tree.pack(ipadx=100, expand=True, fill='both')
 
 
     def set_folder(self, folder):
@@ -83,54 +89,70 @@ class FolderBrowser(ttk.Treeview):
             else:
                 entry_text = full_path.name
             
-            item = self.insert(item, 'end', str(full_path), text=entry_text)
-            self.item(item, open=True)
+            item = self.tree.insert(item, 'end', str(full_path), text=entry_text)
+            self.tree.item(item, open=True)
 
     def add_sub_folders(self, e):
-        base = self.focus()
+        base = self.tree.focus()
         for item in pathlib.Path(base).iterdir():
-            if item.is_dir() and str(item) not in self.get_children(base):
-                self.insert(base, 'end', str(item), text=item.name)
+            if item.is_dir() and str(item) not in self.tree.get_children(base):
+                self.tree.insert(base, 'end', str(item), text=item.name)
 
     def get_and_add_files(self, e):
-        folder = self.focus()
+        folder = self.tree.focus()
         self.file_list.get_files(folder, flag=self.flag)
 
 
-class FileList(ttk.Treeview):
+class FileList(tk.Frame):
     def __init__(self, parent_window, drawing):
         self.files = []
         self.parent_window = parent_window
         self.drawing = drawing
         self.flag = 'A'
+        self.filter = ".+"
         self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
         super().__init__(parent_window)
-        self.config(selectmode='extended')
-        
-        self['columns'] = ('flag', 'freq', 'tilt')
-        self.heading('flag', text='flag')
-        self.heading('freq', text='Frequency')
-        self.heading('tilt', text='Tilt')
-        
-        self.heading('#0', text='filename')
-        self.heading('flag', text='flag')
-        self.heading('freq', text='freq')
-        self.heading('tilt', text='tilt')
 
-        self.column('#0', width=300, anchor='w')
-        self.column('flag', width=10, anchor='w')
-        self.column('tilt', width=10, anchor='w')
-        self.column('freq', width=20, anchor='w')
+        # ---Filter
+        self.filter_var = tk.StringVar(value='.+')
+        self.filter_var.trace_add("write", self.on_filter_change)
+        self.filter1 = tk.Entry(self, textvariable=self.filter_var)
+        self.filter1.pack(fill='x')
 
-        self.bind("<<TreeviewSelect>>", self.draw)
-        self.bind('<Button-1>', self.on_header_click)
-        self.bind("<Double-1>", self.on_double_click)
-        self.filter = ".+"
+        # ---- Tree---
+        self.tree = ttk.Treeview(self)
+        self.tree.config(selectmode='extended')
+
+
+        self.tree['columns'] = ('flag', 'freq', 'tilt')
+        self.tree.heading('flag', text='flag')
+        self.tree.heading('freq', text='Frequency')
+        self.tree.heading('tilt', text='Tilt')
+        
+        self.tree.heading('#0', text='filename')
+        self.tree.heading('flag', text='flag')
+        self.tree.heading('freq', text='freq')
+        self.tree.heading('tilt', text='tilt')
+
+        self.tree.column('#0', width=300, anchor='w')
+        self.tree.column('flag', width=10, anchor='w')
+        self.tree.column('tilt', width=10, anchor='w')
+        self.tree.column('freq', width=20, anchor='w')
+
+        self.tree.bind("<<TreeviewSelect>>", self.draw)
+        self.tree.bind('<Button-1>', self.on_header_click)
+        self.tree.bind("<Double-1>", self.on_double_click)
+
+        self.tree.pack(side='left', expand=False, fill='both', ipadx=50)
+        self.pack(expand=True, fill='both')
 
     def get_files(self, folder, flag):
         self.read_files(folder, flag)
         self.add_files()
 
+    def on_filter_change(self, *args):
+        filter = self.filter_var.get()
+        self.set_filter(filter)
 
     def read_files(self, folder, flag):
 
@@ -139,7 +161,7 @@ class FileList(ttk.Treeview):
 
 
         for item in pathlib.Path(folder).iterdir():
-            if item.is_file() and not item in self.get_children(''):
+            if item.is_file() and not item in self.tree.get_children(''):
                 r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
                 if r:
                     tilt = r.group(1)
@@ -166,19 +188,19 @@ class FileList(ttk.Treeview):
         filtered = [f for f in self.files if re.match(self.filter, f['name'])]
 
         # delete all entries
-        for item in self.get_children():
-            self.delete(item)
+        for item in self.tree.get_children():
+            self.tree.delete(item)
 
         # add all entries
         for row in filtered:
-            if row['path'] not in self.get_children(''):
-                self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+            if row['path'] not in self.tree.get_children(''):
+                self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
 
     def on_header_click(self,e):               
-        region = self.identify_region(e.x, e.y)
+        region = self.tree.identify_region(e.x, e.y)
         if region == 'heading':
             column = self.identify_column(e.x)
 
@@ -210,24 +232,23 @@ class FileList(ttk.Treeview):
                 self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def on_double_click(self, e):
-        item_id = self.identify_row(e.y)
+        item_id = self.tree.identify_row(e.y)
         if not item_id.lower().endswith('.msi'):
             os.system('"' + item_id + '"')
 
     def select_file(self, filename):
-        self.selection_set(filename)  
-        self.focus(filename)        
-        self.see(filename) 
+        self.tree.selection_set(filename)  
+        self.tree.focus(filename)        
+        self.tree.see(filename) 
 
     def draw(self, e):
-        self.drawing.draw(self.selection())
+        self.drawing.draw(self.tree.selection())
 
 
     def set_filter(self, filter_str):
         self.filter = filter_str
         self.add_files()
- 
- 
+  
 class Drawing(tk.Canvas):
     def __init__(self, parent_window):
         self.parent_window = parent_window
@@ -238,6 +259,7 @@ class Drawing(tk.Canvas):
 
         super().__init__(parent_window)
         self.bind("<Configure>", self.on_resize)
+        self.pack(expand=True, fill='both')
 
     def on_resize(self, e):
         self.delete("all")
@@ -383,27 +405,20 @@ class App(tk.Tk):
 
         # --- Drawing ---
         self.drawing = Drawing(self.frame3)
-        self.drawing.pack(expand=True, fill='both')
 
         # ----------- Filter and FileList ---------
-        self.filter_var = tk.StringVar(value='.+')
-        self.filter_var.trace_add("write", self.on_filter_change)
-        self.filter1 = tk.Entry(self.frame2, textvariable=self.filter_var)
-        self.filter1.pack(fill='x')
-
+  
         self.file_table = FileList(self.frame2, self.drawing)
-        self.file_table.pack(side='left', expand=False, fill='both', ipadx=50)
+        
 
         # --------- Browser1 -------------------
         self.browser1 = FolderBrowser(self.frame1, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
-        self.browser1.pack(ipadx=100, expand=True, fill='both')
 
         # ------------ Browser2 ---------
         self.browser2 = FolderBrowser(self.frame1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
-        self.browser2.pack(ipadx=100, expand=True, fill='both') 
-
+  
         # --- Layout ----
         self.frame1.pack(side='left', expand=False, fill='both')
         self.frame2.pack(side='left', expand=False, fill='both')
@@ -413,10 +428,6 @@ class App(tk.Tk):
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
 
-
-    def on_filter_change(self, *args):
-        filter = self.filter_var.get()
-        self.file_table.set_filter(filter)
 
 
 if __name__ == '__main__':
