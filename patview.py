@@ -72,8 +72,6 @@ class FolderBrowser(tk.Frame):
         self.flag = flag
         self.files = []
 
-        self.pack()
-
         self.tree.bind('<<TreeviewOpen>>', self.add_sub_folders)
         self.tree.bind("<<TreeviewSelect>>", self.get_and_add_files)
         self.tree.pack(ipadx=100, expand=True, fill='both')
@@ -144,7 +142,6 @@ class FileList(tk.Frame):
         self.tree.bind("<Double-1>", self.on_double_click)
 
         self.tree.pack(side='left', expand=False, fill='both', ipadx=50)
-        self.pack(expand=True, fill='both')
 
     def get_files(self, folder, flag):
         self.read_files(folder, flag)
@@ -259,7 +256,6 @@ class Drawing(tk.Canvas):
 
         super().__init__(parent_window)
         self.bind("<Configure>", self.on_resize)
-        self.pack(expand=True, fill='both')
 
     def on_resize(self, e):
         self.delete("all")
@@ -398,34 +394,31 @@ class App(tk.Tk):
         self.title('Patview')
         self.geometry(self.start_geometry)
 
-        # ---- frames for left and middle
-        self.frame1 = ttk.Frame()
-        self.frame2 = ttk.Frame()
-        self.frame3 = ttk.Frame()
-
         # --- Drawing ---
-        self.drawing = Drawing(self.frame3)
+        self.drawing = Drawing(self)
 
         # ----------- Filter and FileList ---------
-        self.file_table = FileList(self.frame2, self.drawing)
+        self.file_table = FileList(self, self.drawing)
 
-        # --------- Browser1 -------------------
-        self.browser1 = FolderBrowser(self.frame1, self.file_table, flag='A')
+        # --------- Double Browser -------------------
+        self.frame = ttk.Frame()
+        self.browser1 = FolderBrowser(self.frame, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
-        # -------- Browser2 ---------
-        self.browser2 = FolderBrowser(self.frame1, self.file_table, flag='B')
+        self.browser2 = FolderBrowser(self.frame, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
+
+        self.browser1.pack(expand=True, fill='both')
+        self.browser2.pack(expand=True, fill='both')
   
-        # --- Layout ----
-        self.frame1.pack(side='left', expand=False, fill='both')
-        self.frame2.pack(side='left', expand=False, fill='both')
-        self.frame3.pack(side='left', expand=True, fill='both')
+        # --- Main Layout ----
+        self.frame.pack(side='left', expand=False, fill='both')
+        self.file_table.pack(side='left', expand=False, fill='both')
+        self.drawing.pack(side='left', expand=True, fill='both')
 
         # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
-
 
 
 if __name__ == '__main__':
