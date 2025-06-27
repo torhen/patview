@@ -407,15 +407,13 @@ class App(tk.Tk):
         self.drawing = Drawing(self.frame3)
 
         # ----------- Filter and FileList ---------
-  
         self.file_table = FileList(self.frame2, self.drawing)
-        
 
         # --------- Browser1 -------------------
         self.browser1 = FolderBrowser(self.frame1, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
-        # ------------ Browser2 ---------
+        # -------- Browser2 ---------
         self.browser2 = FolderBrowser(self.frame1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
   
