@@ -141,7 +141,7 @@ class FileList(tk.Frame):
         self.tree.bind('<Button-1>', self.on_header_click)
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        self.tree.pack(side='left', expand=False, fill='both', ipadx=50)
+        self.tree.pack(side='left', expand=True, fill='both', ipadx=50)
 
     def get_files(self, folder, flag):
         self.read_files(folder, flag)
@@ -199,7 +199,7 @@ class FileList(tk.Frame):
     def on_header_click(self,e):               
         region = self.tree.identify_region(e.x, e.y)
         if region == 'heading':
-            column = self.identify_column(e.x)
+            column = self.tree.identify_column(e.x)
 
             if column == '#0':
                 self.sort_files('name', self.sort_order[column])
@@ -221,12 +221,12 @@ class FileList(tk.Frame):
             filtered = [f for f in self.files if re.match(self.filter, f['name'])]
 
             # delete all entries
-            for item in self.get_children():
-                self.delete(item)
+            for item in self.tree.get_children():
+                self.tree.delete(item)
 
             # add all entries
             for row in filtered:
-                self.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+                self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
 
     def on_double_click(self, e):
         item_id = self.tree.identify_row(e.y)
@@ -256,6 +256,8 @@ class Drawing(tk.Canvas):
 
         super().__init__(parent_window)
         self.bind("<Configure>", self.on_resize)
+
+        self.config(relief="sunken", bd=1)
 
     def on_resize(self, e):
         self.delete("all")
@@ -394,6 +396,17 @@ class App(tk.Tk):
         self.title('Patview')
         self.geometry(self.start_geometry)
 
+        # ------ Paned Window ------
+        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.paned_window.pack(expand=True, fill='both' )
+
+        # Create 3 frames (panes)
+        self.frame1 = tk.Frame(self.paned_window, bg="lightblue", width=200)
+        self.frame2 = tk.Frame(self.paned_window, bg="lightgreen", width=200)
+        self.frame3 = tk.Frame(self.paned_window, bg="lightcoral", width=200)
+
+
+
         # --- Drawing ---
         self.drawing = Drawing(self)
 
@@ -401,24 +414,30 @@ class App(tk.Tk):
         self.file_table = FileList(self, self.drawing)
 
         # --------- Double Browser -------------------
-        self.frame = ttk.Frame()
-        self.browser1 = FolderBrowser(self.frame, self.file_table, flag='A')
+        self.folder_browser = ttk.Frame()
+        self.browser1 = FolderBrowser(self.folder_browser, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
-        self.browser2 = FolderBrowser(self.frame, self.file_table, flag='B')
+        self.browser2 = FolderBrowser(self.folder_browser, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
 
         self.browser1.pack(expand=True, fill='both')
         self.browser2.pack(expand=True, fill='both')
+
+        # Add the frames to the PanedWindow
+        self.paned_window.add(self.folder_browser)
+        self.paned_window.add(self.file_table)
+        self.paned_window.add(self.drawing)
   
-        # --- Main Layout ----
-        self.frame.pack(side='left', expand=False, fill='both')
-        self.file_table.pack(side='left', expand=False, fill='both')
-        self.drawing.pack(side='left', expand=True, fill='both')
+        # # --- Main Layout ----
+        # self.frame.pack(side='left', expand=False, fill='both')
+        # self.file_table.pack(side='left', expand=False, fill='both')
+        # self.drawing.pack(side='left', expand=True, fill='both')
 
         # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
+
 
 
 if __name__ == '__main__':
