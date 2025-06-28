@@ -397,36 +397,41 @@ class App(tk.Tk):
         self.geometry(self.start_geometry)
 
         # ------ Main Paned Window ------
-        self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL)
-        self.paned_window.pack(expand=True, fill='both' )
+        self.pw_main = tk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.pw_main.pack(expand=True, fill='both' )
 
-        # ------ Sub Paned Winows ------
-        self.subpane = ttk.PanedWindow(self.paned_window)
-        self.subpane.pack()
+        # ------ Sub Paned Windows ------
+        self.pw1 = ttk.PanedWindow(self.pw_main)
+        self.pw_main.add(self.pw1)
 
-        # --- Drawing ---
-        self.drawing = Drawing(self)
+        self.pw2 = ttk.PanedWindow(self.pw_main)
+        self.pw_main.add(self.pw2)
 
-        # ----------- Filter and FileList ---------
-        self.file_table = FileList(self, self.drawing)
+        self.pw3 = ttk.PanedWindow(self.pw_main)
+        self.pw_main.add(self.pw3)
 
-        # # --------- Double Browser -------------------
-        self.browser1 = FolderBrowser(self.subpane, self.file_table, flag='A')
+        # ---------- Drawing ----------
+        self.drawing = Drawing(self.pw3)
+
+        # ----------- Filelist ---------
+        self.file_table = FileList(self.pw2, self.drawing)
+
+        # --------- Double Browser -------------------
+        self.browser1 = FolderBrowser(self.pw1, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
-        self.browser2 = FolderBrowser(self.subpane, self.file_table, flag='B')
+        self.browser2 = FolderBrowser(self.pw1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
 
-        self.subpane.add(self.browser1)
-        self.subpane.add(self.browser2)
-        self.paned_window.add(self.subpane)
-        self.paned_window.add(self.file_table)
-        self.paned_window.add(self.drawing)
+        # ---- Add to Panes ------
+        self.pw1.add(self.browser1)
+        self.pw1.add(self.browser2)
+        self.pw2.add(self.file_table)
+        self.pw3.add(self.drawing)
 
         # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
-
 
 
 if __name__ == '__main__':
