@@ -396,16 +396,13 @@ class App(tk.Tk):
         self.title('Patview')
         self.geometry(self.start_geometry)
 
-        # ------ Paned Window ------
+        # ------ Main Paned Window ------
         self.paned_window = tk.PanedWindow(self, orient=tk.HORIZONTAL)
         self.paned_window.pack(expand=True, fill='both' )
 
-        # Create 3 frames (panes)
-        self.frame1 = tk.Frame(self.paned_window, bg="lightblue", width=200)
-        self.frame2 = tk.Frame(self.paned_window, bg="lightgreen", width=200)
-        self.frame3 = tk.Frame(self.paned_window, bg="lightcoral", width=200)
-
-
+        # ------ Sub Paned Winows ------
+        self.subpane = ttk.PanedWindow(self.paned_window)
+        self.subpane.pack()
 
         # --- Drawing ---
         self.drawing = Drawing(self)
@@ -413,26 +410,18 @@ class App(tk.Tk):
         # ----------- Filter and FileList ---------
         self.file_table = FileList(self, self.drawing)
 
-        # --------- Double Browser -------------------
-        self.folder_browser = ttk.Frame()
-        self.browser1 = FolderBrowser(self.folder_browser, self.file_table, flag='A')
+        # # --------- Double Browser -------------------
+        self.browser1 = FolderBrowser(self.subpane, self.file_table, flag='A')
         self.browser1.set_folder(self.root_folder)
 
-        self.browser2 = FolderBrowser(self.folder_browser, self.file_table, flag='B')
+        self.browser2 = FolderBrowser(self.subpane, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
 
-        self.browser1.pack(expand=True, fill='both')
-        self.browser2.pack(expand=True, fill='both')
-
-        # Add the frames to the PanedWindow
-        self.paned_window.add(self.folder_browser)
+        self.subpane.add(self.browser1)
+        self.subpane.add(self.browser2)
+        self.paned_window.add(self.subpane)
         self.paned_window.add(self.file_table)
         self.paned_window.add(self.drawing)
-  
-        # # --- Main Layout ----
-        # self.frame.pack(side='left', expand=False, fill='both')
-        # self.file_table.pack(side='left', expand=False, fill='both')
-        # self.drawing.pack(side='left', expand=True, fill='both')
 
         # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
