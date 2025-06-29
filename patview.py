@@ -127,7 +127,7 @@ class FileList(tk.Frame):
         self.tree.heading('freq', text='Frequency')
         self.tree.heading('tilt', text='Tilt')
         
-        self.tree.heading('#0', text='filename')
+        self.tree.heading('#0', text='files')
         self.tree.heading('flag', text='flag')
         self.tree.heading('freq', text='freq')
         self.tree.heading('tilt', text='tilt')
@@ -180,8 +180,18 @@ class FileList(tk.Frame):
 
                 self.files.append(row)
 
+    def is_valid_regex(self, sreg):
+        try:
+            re.compile(sreg)
+            return True
+        except re.error:
+            return False
+
     def add_files(self):
         # Apply filter
+        if not self.is_valid_regex(self.filter):
+            return
+        
         filtered = [f for f in self.files if re.match(self.filter, f['name'])]
 
         # delete all entries
@@ -192,6 +202,8 @@ class FileList(tk.Frame):
         for row in filtered:
             if row['path'] not in self.tree.get_children(''):
                 self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+
+        self.tree.heading('#0', text=f'files ({len(filtered)})')
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
