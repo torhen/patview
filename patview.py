@@ -20,12 +20,10 @@ def make_pattern_dic(msi_path):
         line = line.strip()
 
         if re.match('HORIZONTAL', line):
-            # print('set horizontal mode')
             mode = 'horizontal'
             continue
 
         if re.match('VERTICAL', line):
-            # print('set vertical mode')
             mode = 'vertical'
             continue
 
@@ -358,8 +356,6 @@ class Drawing(tk.Canvas):
                     color = colors[i % len(colors)]
                     # draw pattern
                     self.draw_pattern(msi_file['path'], color)
-                    print(msi_file)
-
 
                     # draw antenna data
                     header = read_header(msi_file['path'])
