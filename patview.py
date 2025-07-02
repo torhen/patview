@@ -276,9 +276,9 @@ class FileList(tk.Frame):
         self.add_files()
   
 class Drawing(tk.Canvas):
-    def __init__(self, parent_window, app):
+    def __init__(self, parent_window, radio_content):
         self.parent_window = parent_window
-        self.app = app
+        self.radio_content = radio_content
         self.fontname = "Consolas"
         self.fontsize = 10
         self.padding = 0.02
@@ -326,7 +326,7 @@ class Drawing(tk.Canvas):
         self.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
     def draw(self, files):
-        radio_selected = self.app.radio_content.get()
+        radio_selected = self.radio_content.get()
         if radio_selected == 1:
             self.draw1(files)
         else:
@@ -446,7 +446,7 @@ class App(tk.Tk):
         self.geometry(self.start_geometry)
 
         # ------ Main Paned Window ------
-        self.pw_main = tk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.pw_main = tk.PanedWindow(self, orient="horizontal")
         self.pw_main.pack(expand=True, fill='both' )
 
         # ------ Sub Paned Windows ------
@@ -470,7 +470,7 @@ class App(tk.Tk):
         self.radio2.pack(side='left')
 
         # ---------- Drawing ----------
-        self.drawing = Drawing(self.pw3, self)
+        self.drawing = Drawing(self.pw3, self.radio_content)
 
         # ----------- Filelist ---------
         self.file_table = FileList(self.pw2, self.drawing)
