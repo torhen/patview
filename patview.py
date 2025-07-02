@@ -104,6 +104,8 @@ class FolderBrowser(tk.Frame):
 class FileList(tk.Frame):
     def __init__(self, parent_window, drawing):
         self.files = []
+        self.files_filtered = []
+        self.files_selected = []
         self.parent_window = parent_window
         self.drawing = drawing
         self.flag = 'A'
@@ -156,7 +158,6 @@ class FileList(tk.Frame):
         # delete files only from source FileBrowser
         self.files = [row for row in self.files if row['flag'] != flag]
 
-
         for item in pathlib.Path(folder).iterdir():
             if item.is_file() and not item in self.tree.get_children(''):
                 r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
@@ -199,9 +200,18 @@ class FileList(tk.Frame):
             self.tree.delete(item)
 
         # add all entries
+        self.files_filtered = []
+
         for row in filtered:
             if row['path'] not in self.tree.get_children(''):
                 self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+                dic = {'path' : row['path'],
+                       'file' : row['name'],
+                       'flag' : row['flag'],
+                       'freq' : row['freq'],
+                       'tilt' : row['tilt']
+                       }
+                self.files_filtered.append(dic)
 
         self.tree.heading('#0', text=f'files ({len(filtered)})')
 
@@ -248,10 +258,17 @@ class FileList(tk.Frame):
     def select_file(self, filename):
         self.tree.selection_set(filename)  
         self.tree.focus(filename)        
-        self.tree.see(filename) 
+        self.tree.see(filename)
+
 
     def draw(self, e):
-        self.drawing.draw(self.tree.selection())
+        files_selected = []
+        for path in self.tree.selection():
+            for entry in self.files_filtered:
+                if entry['path'] == path:
+                    files_selected.append(entry)
+
+        self.drawing.draw(files_selected)
 
 
     def set_filter(self, filter_str):
@@ -259,8 +276,9 @@ class FileList(tk.Frame):
         self.add_files()
   
 class Drawing(tk.Canvas):
-    def __init__(self, parent_window):
+    def __init__(self, parent_window, app):
         self.parent_window = parent_window
+        self.app = app
         self.fontname = "Consolas"
         self.fontsize = 10
         self.padding = 0.02
@@ -308,10 +326,29 @@ class Drawing(tk.Canvas):
         self.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
     def draw(self, files):
-            self.set_files(files)
+        radio_selected = self.app.radio_content.get()
+        if radio_selected == 1:
+            self.draw1(files)
+        else:
+            self.draw2(files)
+
+    def draw1(self, files):
+            self.files = []
+            for v in files:
+                self.files.append(v['path'])
+
             self.delete("all")
             self.draw_axis()
             self.draw_diagrams()
+
+    def draw2(self, files):
+            self.delete("all")
+            i = 10
+            for v in files:
+                text = str(v)
+                self.create_text(10, i, text=text, fill='#000', font=(self.fontname, self.fontsize), anchor='nw')
+                i = i + 10
+
 
     def draw_diagrams(self):
             colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
@@ -421,9 +458,19 @@ class App(tk.Tk):
 
         self.pw3 = ttk.PanedWindow(self.pw_main)
         self.pw_main.add(self.pw3)
+        
+
+        # ----------- Radiobuttons -----
+        self.radio_content = tk.IntVar()
+        self.radio_content.set(1) 
+        self.radio_frame = tk.Frame(self.pw3)
+        self.radio1 = tk.Radiobutton(self.radio_frame, text='patterns', variable=self.radio_content, value=1, command=self.on_radio_change)
+        self.radio1.pack(side='left')
+        self.radio2 = tk.Radiobutton(self.radio_frame, text='frequencies', variable=self.radio_content, value=2, command=self.on_radio_change)
+        self.radio2.pack(side='left')
 
         # ---------- Drawing ----------
-        self.drawing = Drawing(self.pw3)
+        self.drawing = Drawing(self.pw3, self)
 
         # ----------- Filelist ---------
         self.file_table = FileList(self.pw2, self.drawing)
@@ -435,15 +482,21 @@ class App(tk.Tk):
         self.browser2 = FolderBrowser(self.pw1, self.file_table, flag='B')
         self.browser2.set_folder(self.root_folder)
 
+
         # ---- Add to Panes ------
         self.pw1.add(self.browser1)
         self.pw1.add(self.browser2)
         self.pw2.add(self.file_table)
+        self.pw3.add(self.radio_frame)
         self.pw3.add(self.drawing)
+
 
         # -------- initial drawing --------
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
+
+    def on_radio_change(self, *args):
+        self.file_table.draw(0)
 
 
 if __name__ == '__main__':
