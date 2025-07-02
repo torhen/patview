@@ -291,8 +291,7 @@ class Drawing(tk.Canvas):
 
     def on_resize(self, e):
         self.delete("all")
-        self.draw_axis()
-        self.draw_diagrams()
+        self.draw()
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
@@ -325,26 +324,24 @@ class Drawing(tk.Canvas):
         self.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa',dash=(1, 3))
         self.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
-    def draw(self, files):
+    def draw(self, files=None):
+        if files:
+            self.files = files
         radio_selected = self.radio_content.get()
         if radio_selected == 1:
-            self.draw1(files)
+            self.draw1()
         else:
-            self.draw2(files)
+            self.draw2()
 
-    def draw1(self, files):
-            self.files = []
-            for v in files:
-                self.files.append(v['path'])
-
+    def draw1(self):
             self.delete("all")
             self.draw_axis()
             self.draw_diagrams()
 
-    def draw2(self, files):
+    def draw2(self):
             self.delete("all")
             i = 10
-            for v in files:
+            for v in self.files:
                 text = str(v)
                 self.create_text(10, i, text=text, fill='#000', font=(self.fontname, self.fontsize), anchor='nw')
                 i = i + 10
@@ -357,15 +354,16 @@ class Drawing(tk.Canvas):
             a = self.padding * w
 
             for i, msi_file in enumerate(self.files):
-                if pathlib.Path(msi_file).suffix.lower() == '.msi':
+                if pathlib.Path(msi_file['path']).suffix.lower() == '.msi':
                     color = colors[i % len(colors)]
                     # draw pattern
-                    self.draw_pattern(msi_file, color)
+                    self.draw_pattern(msi_file['path'], color)
+                    print(msi_file)
 
 
                     # draw antenna data
-                    header = read_header(msi_file)
-                    filename = pathlib.Path(msi_file).name
+                    header = read_header(msi_file['path'])
+                    filename = pathlib.Path(msi_file['path']).name
                     header.insert(0, filename)
 
                     # lines for one pattern
@@ -380,7 +378,7 @@ class Drawing(tk.Canvas):
 
                     # show 1 line for one paattern
                     else:
-                        text = pathlib.Path(msi_file).name
+                        text = msi_file['file']
                         for k, line in enumerate(header):
                             line = line.strip('\n').strip()
                             if len(line) > 0:
