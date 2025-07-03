@@ -273,22 +273,39 @@ class FileList(tk.Frame):
         self.filter = filter_str
         self.add_files()
   
-class Drawing(tk.Canvas):
-    def __init__(self, parent_window, radio_content):
+class Drawing(tk.Frame):
+    def __init__(self, parent_window):
         self.parent_window = parent_window
-        self.radio_content = radio_content
         self.fontname = "Consolas"
         self.fontsize = 10
         self.padding = 0.02
         self.files = []
 
         super().__init__(parent_window)
-        self.bind("<Configure>", self.on_resize)
 
-        self.config(relief="sunken", bd=1)
+
+        # ------- Radiobuttons -----
+        self.radio_content = tk.IntVar()
+        self.radio_content.set(1) 
+        self.radio_frame = tk.Frame(self)
+        self.radio1 = tk.Radiobutton(self.radio_frame, text='patterns', variable=self.radio_content, value=1, command=self.on_radio_change)
+        self.radio1.pack(side='left')
+        self.radio2 = tk.Radiobutton(self.radio_frame, text='frequencies', variable=self.radio_content, value=2, command=self.on_radio_change)
+        self.radio2.pack(side='left')
+        self.radio_frame.pack(anchor='w')
+
+
+        # ----- Canvas ---
+        self.canvas = tk.Canvas(self, relief="sunken", bd=1)
+        self.canvas.pack(expand=True, fill='both')
+        self.canvas.bind("<Configure>", self.on_resize)
+
+
+    def on_radio_change(self, *args):
+        self.draw()
+      
 
     def on_resize(self, e):
-        self.delete("all")
         self.draw()
 
 
@@ -297,7 +314,7 @@ class Drawing(tk.Canvas):
         y0 = center_y - radius
         x1 = center_x + radius
         y1 = center_y + radius
-        return self.create_oval(x0, y0, x1, y1, **kwargs)
+        return self.canvas.create_oval(x0, y0, x1, y1, **kwargs)
 
     def draw_axis(self):
         w = self.winfo_width()
@@ -316,11 +333,11 @@ class Drawing(tk.Canvas):
         self.draw_circle(x0, y0, 0.9 * r, outline="#aaa",dash=(1,1)) # 3dB
 
         # axis
-        self.create_line(a, w/4, w/2 -a, w/4, fill='#aaa',dash=(1, 3))
-        self.create_line(w/4, a, w/4, w/2-a, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(a, w/4, w/2 -a, w/4, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(w/4, a, w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
-        self.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa',dash=(1, 3))
-        self.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa',dash=(1, 3))
+        self.canvas.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
     def draw(self, files=None):
         if files:
@@ -332,17 +349,34 @@ class Drawing(tk.Canvas):
             self.draw2()
 
     def draw1(self):
-            self.delete("all")
+            self.canvas.delete("all")
             self.draw_axis()
             self.draw_diagrams()
 
     def draw2(self):
-            self.delete("all")
-            i = 10
-            for v in self.files:
-                text = str(v)
-                self.create_text(10, i, text=text, fill='#000', font=(self.fontname, self.fontsize), anchor='nw')
-                i = i + 10
+            self.canvas.delete("all")
+
+
+
+            self.canvas.create_rectangle(self.scale(700),50, self.scale(4000), 100, width=0.1)
+
+            for entry in self.files:
+                f = float(entry['freq'])
+
+                x0 = self.scale(f)
+                y0 = 40
+                x1 = x0
+                y1 = 110
+
+                self.canvas.create_line(x0, y0, x1, y1)
+
+    def scale(self, x):
+        w = self.winfo_width()
+        h = self.winfo_height()
+        fmin, fmax = 700, 4000
+        space = 10
+        return (x - fmin) / (fmax - fmin) * (w - 2 * space) + space
+
 
 
     def draw_diagrams(self):
@@ -370,7 +404,7 @@ class Drawing(tk.Canvas):
                                 my_font = font.Font(family=self.fontname, size=self.fontsize, weight="bold")
                             else:
                                 my_font = (self.fontname, self.fontsize)
-                            self.create_text(10, w/2 + k * self.fontsize * 1.5, text=line, fill=color, font=my_font, anchor='nw')
+                            self.canvas.create_text(10, w/2 + k * self.fontsize * 1.5, text=line, fill=color, font=my_font, anchor='nw')
 
                     # show 1 line for one paattern
                     else:
@@ -379,7 +413,7 @@ class Drawing(tk.Canvas):
                             line = line.strip('\n').strip()
                             if len(line) > 0:
                                 text = text + '|' + line.strip()
-                        self.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=(self.fontname, self.fontsize), anchor='nw')
+                        self.canvas.create_text(10, w/2 + i * self.fontsize * 1.5, text=text, fill=color, font=(self.fontname, self.fontsize), anchor='nw')
 
     def set_files(self, files):
         self.files = files
@@ -403,7 +437,7 @@ class Drawing(tk.Canvas):
             y = r * math.sin(rad) + w/4
             a.append(x)
             a.append(y)
-        self.create_polygon(*a, fill='', outline=color)
+        self.canvas.create_polygon(*a, fill='', outline=color)
 
         points = dic['VERTICAL']
         a = []
@@ -417,7 +451,7 @@ class Drawing(tk.Canvas):
             y = r * math.sin(rad) + w/4
             a.append(x)
             a.append(y)
-        self.create_polygon(*a, fill='', outline=color)
+        self.canvas.create_polygon(*a, fill='', outline=color)
 
 # ------------------- APP -------------------------------
 class App(tk.Tk):
@@ -453,18 +487,8 @@ class App(tk.Tk):
         self.pw3 = ttk.PanedWindow(self.pw_main)
         self.pw_main.add(self.pw3)
         
-
-        # ----------- Radiobuttons -----
-        self.radio_content = tk.IntVar()
-        self.radio_content.set(1) 
-        self.radio_frame = tk.Frame(self.pw3)
-        self.radio1 = tk.Radiobutton(self.radio_frame, text='patterns', variable=self.radio_content, value=1, command=self.on_radio_change)
-        self.radio1.pack(side='left')
-        self.radio2 = tk.Radiobutton(self.radio_frame, text='frequencies', variable=self.radio_content, value=2, command=self.on_radio_change)
-        self.radio2.pack(side='left')
-
         # ---------- Drawing ----------
-        self.drawing = Drawing(self.pw3, self.radio_content)
+        self.drawing = Drawing(self.pw3)
 
         # ----------- Filelist ---------
         self.file_table = FileList(self.pw2, self.drawing)
@@ -481,7 +505,6 @@ class App(tk.Tk):
         self.pw1.add(self.browser1)
         self.pw1.add(self.browser2)
         self.pw2.add(self.file_table)
-        self.pw3.add(self.radio_frame)
         self.pw3.add(self.drawing)
 
 
@@ -489,8 +512,6 @@ class App(tk.Tk):
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
 
-    def on_radio_change(self, *args):
-        self.file_table.draw(0)
 
 
 if __name__ == '__main__':
