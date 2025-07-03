@@ -349,26 +349,50 @@ class Drawing(tk.Frame):
             self.draw2()
 
     def draw1(self):
-            self.canvas.delete("all")
-            self.draw_axis()
-            self.draw_diagrams()
+        self.canvas.delete("all")
+        self.draw_axis()
+        self.draw_diagrams()
 
     def draw2(self):
-            self.canvas.delete("all")
+        self.canvas.delete("all")
+
+        #     self.bands = {
+        #     'band' : ['0700', '0800', '0900', '1400', '1800', '2100', '2600', '3500', '3600'],
+        #     'letter' : ['S', 'L', 'G', 'V', 'D', 'U', 'E', 'W', 'Z'],
+        #     'sr_fmin' :	[ 743, 791, 930.1, 1452  , 1860.1, 2110.5, 2620  , 3540  , 3700],
+        #     'sr_fmax' :	[ 773, 801, 945.1, 1467  , 1879.9, 2120.3, 2645  , 3585  , 3800],
+        #     'sr_fmid' : [ 758, 796, 937.6, 1459.5, 1870  , 2115.4, 2632.5, 3562.5, 3750],
+        #     'sr_bw'   : [  30,	10,  15  ,   15,     19.8,	  9.8,   25  ,	45   ,  100],
+
+        # }
 
 
+        def rect(band, letter, f0, f1, color="#333"):
+            self.canvas.create_rectangle(self.scale(f0),50, self.scale(f1), 100, width=0.1, fill=color)
+            self.canvas.create_text(self.scale(f0), 20, text=band, font=("Helvetica", 12), fill=color,anchor='nw')
 
-            self.canvas.create_rectangle(self.scale(700),50, self.scale(4000), 100, width=0.1)
+        rect('0700', 'S', 743,    773,    '#f00')
+        rect('0800', 'L', 791,    801,    '#f70')
+        rect('0900', 'G', 930.1,  945.1,  '#fa0')
+        rect('1400', 'V', 1452,   1467,   '#fc0')
+        rect('1800', 'D', 1860.1, 1879.9, '#0f0')
+        rect('2100', 'U', 2110.5, 2120.3, '#0cf')
+        rect('2600', 'E', 2620,   2645,   '#08f')
+        rect('3500', 'W', 3540,   3585,   '#50f')
+        rect('3600', 'Z', 3700,   3800,   '#90f')
 
-            for entry in self.files:
-                f = float(entry['freq'])
 
-                x0 = self.scale(f)
-                y0 = 40
-                x1 = x0
-                y1 = 110
+        # create frequency lines
+        for entry in self.files:
+            f = float(entry['freq'])
+            x0 = self.scale(f)
+            y0 = 40
+            x1 = x0
+            y1 = 110
 
-                self.canvas.create_line(x0, y0, x1, y1)
+            self.canvas.create_line(x0, y0, x1, y1)
+    
+
 
     def scale(self, x):
         w = self.winfo_width()
