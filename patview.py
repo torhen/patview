@@ -59,6 +59,25 @@ def read_header(msi_path):
                 return l
     return l
 
+def pairs2atoll(pairs_hori, pairs_vert):
+    """convert to list of string pairs to atoll importable string"""
+    res = '2 0 0 360'
+    digits = 2
+    for p in pairs_hori:
+        deg = int(float(p[0]))
+        gain = round(float(p[1]), digits )
+        part = str(deg) + ' ' + str(gain)
+        res = res + ' ' + part
+
+    res = res + ' 1 0 360'
+    for p in pairs_vert:
+        deg = int(float(p[0]))
+        gain = round(float(p[1]), digits )
+        part = str(deg) + ' ' + str(gain)
+        res = res + ' ' + part
+
+    return res
+
 class FolderBrowser(tk.Frame):
     def __init__(self, parent_window, file_list, flag):
         super().__init__(parent_window)
@@ -144,7 +163,9 @@ class FileList(tk.Frame):
         self.tree.pack(side='left', expand=True, fill='both', ipadx=50)
 
         self.tree.bind("<Control-c>", self.copy_to_clipboard)
+        self.tree.bind("<Control-C>", self.copy_to_clipboard)
         self.tree.bind("<Control-a>", self.select_all)
+        self.tree.bind("<Control-A>", self.select_all)
 
     def copy_to_clipboard(self,*args):
         selected_items = self.tree.selection()  # Get selected item ID
@@ -274,13 +295,13 @@ class FileList(tk.Frame):
 
 
     def draw(self, e):
-        files_selected = []
+        self.files_selected = []
         for path in self.tree.selection():
             for entry in self.files_filtered:
                 if entry['path'] == path:
-                    files_selected.append(entry)
+                    self.files_selected.append(entry)
 
-        self.drawing.draw(files_selected)
+        self.drawing.draw(self.files_selected)
 
 
     def set_filter(self, filter_str):
@@ -388,7 +409,10 @@ class Drawing(tk.Frame):
 
         # create frequency lines
         for entry in self.files:
-            f = float(entry['freq'])
+            try:
+                f = float(entry['freq'])
+            except:
+                f = 0
             x0 = self.scale(f)
             y0 = 40
             x1 = x0
@@ -552,8 +576,30 @@ class App(tk.Tk):
         self.file_table.select_file(self.start_msi)
 
     def make_atoll(self, *args):
-        print('make_atoll')
+        file_dic = self.file_table.files_selected[0]
+        antenna_dic = make_pattern_dic(file_dic['path'])
+        atoll_str = pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
 
+        res = {}
+        res['Name'] = pathlib.Path(file_dic['file']).stem
+        res['Gain'] = antenna_dic['GAIN'].split()[0]
+        res['frequency'] = file_dic['freq']
+        res['Comments'] = pathlib.Path(file_dic['file'])
+        res['Pattern'] = atoll_str
+        columns = []
+        values = []
+        for entry in res:
+            columns.append(entry)
+            values.append(str(res[entry]))
+
+        columns = '\t'.join(columns) + '\n'
+        values = '\t'.join(values) + '\n'
+
+        with open('atoll_import.txt', 'w') as fout:
+            fout.write(columns )
+            fout.write(values)
+
+        print('atoll_import.txt created')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
