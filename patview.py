@@ -501,6 +501,17 @@ class App(tk.Tk):
         self.title('Patview')
         self.geometry(self.start_geometry)
 
+        # ------ Menue -----
+        self.menu_bar = tk.Menu(self)
+        # Create a File menu
+        file_menu = tk.Menu(self.menu_bar, tearoff=0)
+        file_menu.add_command(label="Make Atoll Import", command=self.make_atoll)
+
+        self.menu_bar.add_cascade(label="Action", menu=file_menu)
+
+        # Attach the menu bar to the window
+        self.config(menu=self.menu_bar)
+
         # ------ Main Paned Window ------
         self.pw_main = tk.PanedWindow(self, orient="horizontal")
         self.pw_main.pack(expand=True, fill='both' )
@@ -540,6 +551,8 @@ class App(tk.Tk):
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
 
+    def make_atoll(self, *args):
+        print('make_atoll')
 
 
 if __name__ == '__main__':
