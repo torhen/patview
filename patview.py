@@ -595,11 +595,11 @@ class App(tk.Tk):
         columns = '\t'.join(columns) + '\n'
         values = '\t'.join(values) + '\n'
 
-        with open('atoll_import.txt', 'w') as fout:
+        with open(r'C:\test\atoll_import.txt', 'w') as fout:
             fout.write(columns )
             fout.write(values)
 
-        print('atoll_import.txt created')
+        print(r'C:\test\atoll_import.txt')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
