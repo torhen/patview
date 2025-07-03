@@ -143,6 +143,20 @@ class FileList(tk.Frame):
 
         self.tree.pack(side='left', expand=True, fill='both', ipadx=50)
 
+        self.tree.bind("<Control-c>", self.copy_to_clipboard)
+        self.tree.bind("<Control-a>", self.select_all)
+
+    def copy_to_clipboard(self,*args):
+        selected_items = self.tree.selection()  # Get selected item ID
+        if selected_items:
+            text = '\n'.join(selected_items)  # Combine values with tabs
+            self.clipboard_clear()
+            self.clipboard_append(text)
+
+    def select_all(self, event=None):
+        self.tree.selection_set(self.tree.get_children())
+        return "break"  # Prevent default behavior (e.g. text selection)
+    
     def get_files(self, folder, flag):
         self.read_files(folder, flag)
         self.add_files()
@@ -355,16 +369,6 @@ class Drawing(tk.Frame):
 
     def draw2(self):
         self.canvas.delete("all")
-
-        #     self.bands = {
-        #     'band' : ['0700', '0800', '0900', '1400', '1800', '2100', '2600', '3500', '3600'],
-        #     'letter' : ['S', 'L', 'G', 'V', 'D', 'U', 'E', 'W', 'Z'],
-        #     'sr_fmin' :	[ 743, 791, 930.1, 1452  , 1860.1, 2110.5, 2620  , 3540  , 3700],
-        #     'sr_fmax' :	[ 773, 801, 945.1, 1467  , 1879.9, 2120.3, 2645  , 3585  , 3800],
-        #     'sr_fmid' : [ 758, 796, 937.6, 1459.5, 1870  , 2115.4, 2632.5, 3562.5, 3750],
-        #     'sr_bw'   : [  30,	10,  15  ,   15,     19.8,	  9.8,   25  ,	45   ,  100],
-
-        # }
 
 
         def rect(band, letter, f0, f1, color="#333"):
