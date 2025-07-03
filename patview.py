@@ -581,8 +581,7 @@ class App(tk.Tk):
         atoll_str = pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
 
         res = {}
-        res['Name'] = pathlib.Path(file_dic['file']).stem
-        res['Gain'] = antenna_dic['GAIN'].split()[0]
+        res['Name'] = antenna_dic['NAME'].split('_')[0] + 'Z' +  '_X' + '_T' + str(int(file_dic['tilt'])).zfill(2)
         res['frequency'] = file_dic['freq']
         res['Comments'] = pathlib.Path(file_dic['file'])
         res['Pattern'] = atoll_str
@@ -599,7 +598,7 @@ class App(tk.Tk):
             fout.write(columns )
             fout.write(values)
 
-        print(r'C:\test\atoll_import.txt')
+        print(res)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
