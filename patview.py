@@ -227,12 +227,13 @@ class FolderBrowser(tk.Frame):
 
 
 class FileList(tk.Frame):
-    def __init__(self, parent_window, drawing):
+    def __init__(self, parent_window, drawing, app):
         self.files = []
         self.files_filtered = []
         self.files_selected = []
         self.parent_window = parent_window
         self.drawing = drawing
+        self.app = app
         self.flag = 'A'
         self.filter = ".+"
         self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
@@ -351,7 +352,9 @@ class FileList(tk.Frame):
                        }
                 self.files_filtered.append(dic)
 
-        self.tree.heading('#0', text=f'files ({len(filtered)})')
+        
+        s = f'files ({len(filtered)})'
+        self.tree.heading('#0', text=s)
 
     def sort_files(self, columns, ascending):
         self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
@@ -408,14 +411,18 @@ class FileList(tk.Frame):
 
         self.drawing.draw(self.files_selected)
 
+        s = f'{len(self.files_selected)} files selected'
+        self.app.set_statusbar(s)
+
 
     def set_filter(self, filter_str):
         self.filter = filter_str
         self.add_files()
   
 class Drawing(tk.Frame):
-    def __init__(self, parent_window):
+    def __init__(self, parent_window, app):
         self.parent_window = parent_window
+        self.app = app
         self.fontname = "Consolas"
         self.fontsize = 10
         self.padding = 0.02
@@ -479,7 +486,7 @@ class Drawing(tk.Frame):
         self.canvas.create_line(w/2+a, w/4, w/2+w/2 -a, w/4, fill='#aaa',dash=(1, 3))
         self.canvas.create_line(w/2+w/4, a, w/2+w/4, w/2-a, fill='#aaa',dash=(1, 3))
 
-    def draw(self, files=None):
+    def draw(self, files=None):  
         if files:
             self.files = files
         radio_selected = self.radio_content.get()
@@ -500,7 +507,7 @@ class Drawing(tk.Frame):
         def rect(band_name, letter, f0, f1, color="#333"):
             self.canvas.create_text(self.scale(f0), 20, text=letter, font=("Helvetica", 10), fill=color, anchor='nw')
             self.canvas.create_text(self.scale(f0), 40, text=band_name, font=("Helvetica", 10), fill=color, anchor='nw')
-            self.canvas.create_rectangle(self.scale(f0),80, self.scale(f1), 110, width=0.1, fill=color)
+            self.canvas.create_rectangle(self.scale(f0),80, self.scale(f1), 110, width=0.1, fill=color, outline="")
 
 
 
@@ -535,7 +542,12 @@ class Drawing(tk.Frame):
             w = self.winfo_width()
             a = self.padding * w
 
-            for i, msi_file in enumerate(self.files):
+            files = self.files
+            if len(self.files) > 50:
+                files = self.files[0:50]
+                app.set_statusbar("Drawing patterns limited to 50")
+
+            for i, msi_file in enumerate(files):
                 if pathlib.Path(msi_file['path']).suffix.lower() == '.msi':
                     color = pattern_colors[i % len(pattern_colors)]
                     # draw pattern
@@ -547,7 +559,7 @@ class Drawing(tk.Frame):
                     header.insert(0, filename)
 
                     # lines for one pattern
-                    if len(self.files) <= 1: 
+                    if len(files) <= 1: 
                         for k, line in enumerate(header):
                             line = line.strip()
                             if k==0:
@@ -625,7 +637,6 @@ class App(tk.Tk):
 
         # ------ Menue -----
         self.menu_bar = tk.Menu(self)
-        # Create a File menu
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
         file_menu.add_command(label="Make Atoll Import", command=self.on_make_atoll)
 
@@ -633,6 +644,14 @@ class App(tk.Tk):
 
         # Attach the menu bar to the window
         self.config(menu=self.menu_bar)
+
+        # ------ status bar -------
+        self.status_var = tk.StringVar()
+        self.status_var.set("Ready")  # Initial status message
+
+        self.status_bar = tk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN, anchor='w')
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
 
         # ------ Main Paned Window ------
         self.pw_main = tk.PanedWindow(self, orient="horizontal")
@@ -649,10 +668,10 @@ class App(tk.Tk):
         self.pw_main.add(self.pw3)
         
         # ---------- Drawing ----------
-        self.drawing = Drawing(self.pw3)
+        self.drawing = Drawing(self.pw3, self)
 
         # ----------- Filelist ---------
-        self.file_table = FileList(self.pw2, self.drawing)
+        self.file_table = FileList(self.pw2, self.drawing, self)
 
         # --------- Double Browser -------------------
         self.browser1 = FolderBrowser(self.pw1, self.file_table, flag='A')
@@ -673,10 +692,13 @@ class App(tk.Tk):
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
 
+
     def on_make_atoll(self, *args):
         files = self.file_table.files_selected
         Helper.make_atoll(files)
 
+    def set_statusbar(self, s):
+        self.status_var.set(s)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
