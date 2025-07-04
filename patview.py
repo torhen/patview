@@ -10,24 +10,27 @@ import sys
 import os
 
 # ----------- Globals ----------------------
-bands = [
-    ['0700', 'S', 743,    773,    '#f00'],
-    ['0800', 'L', 791,    801,    '#f70'],
-    ['0900', 'G', 930.1,  945.1,  '#fa0'],
-    ['1400', 'V', 1452,   1467,   '#fc0'],
-    ['1800', 'D', 1860.1, 1879.9, '#0f0'],
-    ['2100', 'U', 2110.5, 2120.3, '#0cf'],
-    ['2600', 'E', 2620,   2645,   '#08f'],
-    ['3500', 'W', 3540,   3585,   '#50f'],
-    ['3600', 'Z', 3700,   3800,   '#90f']
-]
+class Settings:
+    bands = [
+        ['0700', 'S', 743,    773,    '#f00'],
+        ['0800', 'L', 791,    801,    '#f70'],
+        ['0900', 'G', 930.1,  945.1,  '#fa0'],
+        ['1400', 'V', 1452,   1467,   '#fc0'],
+        ['1800', 'D', 1860.1, 1879.9, '#0a0'],
+        ['2100', 'U', 2110.5, 2120.3, '#0cf'],
+        ['2600', 'E', 2620,   2645,   '#08f'],
+        ['3500', 'W', 3540,   3585,   '#50f'],
+        ['3600', 'Z', 3700,   3800,   '#90f']
+    ]
+
+    pattern_colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
 
 # ------- Utility functions -------
 
 class Helper:
     @staticmethod
     def calc_band(f):
-        for band in bands:
+        for band in Settings.bands:
             fmin = band[2]-10
             fmax = band[3]+10
             if fmin <= f <= fmax:
@@ -489,11 +492,13 @@ class Drawing(tk.Frame):
 
 
         def rect(band_name, letter, f0, f1, color="#333"):
-            self.canvas.create_rectangle(self.scale(f0),50, self.scale(f1), 100, width=0.1, fill=color)
-            self.canvas.create_text(self.scale(f0), 20, text=band_name, font=("Helvetica", 12), fill=color,anchor='nw')
+            self.canvas.create_text(self.scale(f0), 20, text=letter, font=("Helvetica", 10), fill=color, anchor='nw')
+            self.canvas.create_text(self.scale(f0), 40, text=band_name, font=("Helvetica", 10), fill=color, anchor='nw')
+            self.canvas.create_rectangle(self.scale(f0),80, self.scale(f1), 110, width=0.1, fill=color)
 
 
-        for band in bands:
+
+        for band in Settings.bands:
             rect(band[0], band[1], band[2], band[3], band[4])
 
 
@@ -505,14 +510,12 @@ class Drawing(tk.Frame):
             except:
                 f = 0
             x0 = self.scale(f)
-            y0 = 40
+            y0 = 70
             x1 = x0
-            y1 = 110
+            y1 = 120
 
             self.canvas.create_line(x0, y0, x1, y1)
     
-
-
     def scale(self, x):
         w = self.winfo_width()
         h = self.winfo_height()
@@ -520,17 +523,15 @@ class Drawing(tk.Frame):
         space = 10
         return (x - fmin) / (fmax - fmin) * (w - 2 * space) + space
 
-
-
     def draw_diagrams(self):
-            colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
+            pattern_colors = Settings.pattern_colors
            
             w = self.winfo_width()
             a = self.padding * w
 
             for i, msi_file in enumerate(self.files):
                 if pathlib.Path(msi_file['path']).suffix.lower() == '.msi':
-                    color = colors[i % len(colors)]
+                    color = pattern_colors[i % len(pattern_colors)]
                     # draw pattern
                     self.draw_pattern(msi_file['path'], color)
 
