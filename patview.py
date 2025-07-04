@@ -27,6 +27,7 @@ class Settings:
 
     extract_frequency_from_filename = r'.*_(\d{3,4})(_|\.|MHz)'
     extract_tilt_from_filename = r'.*_(\d\d)D?T[_\.]'
+    atoll_import_file = r'C:\test\atoll_import.txt'
 
 # ------- Utility functions -------
 class Helper:
@@ -167,7 +168,7 @@ class Helper:
             Min_Frequency = band[2]
             Max_Frequency = band[3]
             SR_ANTENNA_NAME = antenna_dic['NAME']
-            FREQUENCY = file_dic['freq']
+            FREQUENCY = int(band[0])
             TILT = Helper.calc_tilt(file_dic['tilt'])
             SR_BAND = letter
             SR_POLARIZATION = 'X'
@@ -176,12 +177,12 @@ class Helper:
             line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{SR_ANTENNA_LENGHT}\t{Pattern}\n'
             values.append(line)
 
-        with open(r'C:\test\atoll_import.txt', 'w') as fout:
+        with open(Settings.atoll_import_file, 'w') as fout:
             fout.write(columns)
             for value in values:
                 fout.write(value)
 
-        messagebox.showinfo('Make Atoll Pattern', r'C:\test\atoll_import.txt created')
+        messagebox.showinfo('Make Atoll Pattern', f'{Settings.atoll_import_file} created')
 
 
 # ----------------------- App ---------------------------------------------
