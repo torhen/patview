@@ -23,8 +23,8 @@ bands = [
 
 def calc_band(f):
     for band in bands:
-        fmin = band[2]
-        fmax = band[3]
+        fmin = band[2]-10
+        fmax = band[3]+10
         if fmin <= f <= fmax:
             return band
     return []
@@ -113,6 +113,14 @@ def calc_gain(s):
 
     return round(float(value) + add, 2)
 
+def calc_tilt(s):
+    s = s.strip()
+    if s == '':
+        return 0
+    
+    return int(s)
+    
+
 def make_atoll(files):
 
     columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tSR_ANTENNA_LENGHT\tPattern\n"
@@ -125,9 +133,9 @@ def make_atoll(files):
 
         band = calc_band(freq)
         letter = band[1]
-        tilt = str(int(file_dic['tilt'])).zfill(2)
+        tilt_str = str(calc_tilt(file_dic['tilt'])).zfill(2)
 
-        Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt
+        Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt_str
         Gain = calc_gain(antenna_dic['GAIN'])
         Manufacturer = '?'
         Comments = pathlib.Path(file_dic['file'])
@@ -137,7 +145,7 @@ def make_atoll(files):
         Max_Frequency = band[3]
         SR_ANTENNA_NAME = antenna_dic['NAME']
         FREQUENCY = file_dic['freq']
-        TILT = int(file_dic['tilt'])
+        TILT = calc_tilt(file_dic['tilt'])
         SR_BAND = letter
         SR_POLARIZATION = 'X'
         SR_ANTENNA_LENGHT = 0
