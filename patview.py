@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import font
 from tkinter import simpledialog
+from tkinter import messagebox
 import pathlib
 import re
 import math
@@ -21,144 +22,161 @@ bands = [
     ['3600', 'Z', 3700,   3800,   '#90f']
 ]
 
-def calc_band(f):
-    for band in bands:
-        fmin = band[2]-10
-        fmax = band[3]+10
-        if fmin <= f <= fmax:
-            return band
-    return []
+# ------- Utility functions -------
 
-def make_pattern_dic(msi_path):
-    with open(msi_path, encoding='latin1') as fin:
-        lines = fin.readlines()
+class Helper:
+    @staticmethod
+    def calc_band(f):
+        for band in bands:
+            fmin = band[2]-10
+            fmax = band[3]+10
+            if fmin <= f <= fmax:
+                return band
+        return []
 
-    mode = ''
-    hori = []
-    vert = []
-    dic = {}
-    for line in lines:
-        line = line.strip()
+    @staticmethod
+    def make_pattern_dic(msi_path):
+        with open(msi_path, encoding='latin1') as fin:
+            lines = fin.readlines()
 
-        if re.match('HORIZONTAL', line):
-            mode = 'horizontal'
-            continue
+        mode = ''
+        hori = []
+        vert = []
+        dic = {}
+        for line in lines:
+            line = line.strip()
 
-        if re.match('VERTICAL', line):
-            mode = 'vertical'
-            continue
+            if re.match('HORIZONTAL', line):
+                mode = 'horizontal'
+                continue
 
-        r = re.match('^([A-Z]+)\s+(.*)', line)
-        if r:
-            flag = r.group(1)
-            data = r.group(2)
-            dic[flag] = data
-            continue
+            if re.match('VERTICAL', line):
+                mode = 'vertical'
+                continue
+
+            r = re.match('^([A-Z]+)\s+(.*)', line)
+            if r:
+                flag = r.group(1)
+                data = r.group(2)
+                dic[flag] = data
+                continue
 
 
-        r = re.match('^([\d\.]+)\s([\d\.]+)', line)
-        if r:
-            pair = (float(r.group(1)), float(r.group(2)))
-            if mode == 'horizontal':
-                hori.append(pair)
-            elif mode == 'vertical':
-                vert.append(pair)
-            else:
-                assert 0, 'ERROR'
+            r = re.match('^([\d\.]+)\s([\d\.]+)', line)
+            if r:
+                pair = (float(r.group(1)), float(r.group(2)))
+                if mode == 'horizontal':
+                    hori.append(pair)
+                elif mode == 'vertical':
+                    vert.append(pair)
+                else:
+                    assert 0, 'ERROR'
 
-    dic['HORIZONTAL'] = hori
-    dic['VERTICAL'] = vert
-    return dic
+        dic['HORIZONTAL'] = hori
+        dic['VERTICAL'] = vert
+        return dic
 
-def read_header(msi_path):
-    l = []
-    with open(msi_path) as fin:
-        for i in range(50):
-            line = fin.readline()
-            l.append(line)
-            if line.startswith('HORIZONTAL'):
-                return l
-    return l
+    @staticmethod
+    def read_header(msi_path):
+        l = []
+        with open(msi_path) as fin:
+            for i in range(50):
+                line = fin.readline()
+                l.append(line)
+                if line.startswith('HORIZONTAL'):
+                    return l
+        return l
 
-def pairs2atoll(pairs_hori, pairs_vert):
-    """convert to list of string pairs to atoll importable string"""
-    res = '2 0 0 360'
-    digits = 2
-    for p in pairs_hori:
-        deg = int(float(p[0]))
-        gain = round(float(p[1]), digits )
-        part = str(deg) + ' ' + str(gain)
-        res = res + ' ' + part
+    @staticmethod
+    def pairs2atoll(pairs_hori, pairs_vert):
+        """convert to list of string pairs to atoll importable string"""
+        res = '2 0 0 360'
+        digits = 2
+        for p in pairs_hori:
+            deg = int(float(p[0]))
+            gain = round(float(p[1]), digits )
+            part = str(deg) + ' ' + str(gain)
+            res = res + ' ' + part
 
-    res = res + ' 1 0 360'
-    for p in pairs_vert:
-        deg = int(float(p[0]))
-        gain = round(float(p[1]), digits )
-        part = str(deg) + ' ' + str(gain)
-        res = res + ' ' + part
+        res = res + ' 1 0 360'
+        for p in pairs_vert:
+            deg = int(float(p[0]))
+            gain = round(float(p[1]), digits )
+            part = str(deg) + ' ' + str(gain)
+            res = res + ' ' + part
 
-    return res
+        return res
 
-def calc_gain(s):
-    l = s.split()
-    value = l[0]
-    unit = l[1]
+    @staticmethod
+    def calc_gain(s):
+        l = s.split()
+        value = l[0]
+        unit = l[1]
 
-    if unit == 'dBd':
-        add = 2.15
-    elif unit == 'dBi':
-        add = 0
-    else:
-        assert 'cant calc gain'
+        if unit == 'dBd':
+            add = 2.15
+        elif unit == 'dBi':
+            add = 0
+        else:
+            assert 'cant calc gain'
 
-    return round(float(value) + add, 2)
+        return round(float(value) + add, 2)
 
-def calc_tilt(s):
-    s = s.strip()
-    if s == '':
-        return 0
+    @staticmethod
+    def calc_tilt(s):
+        s = s.strip()
+        if s == '':
+            return 0
+        
+        return int(s)
+
+    @staticmethod
+    def is_valid_regex(sreg):
+        try:
+            re.compile(sreg)
+            return True
+        except re.error:
+            return False
     
-    return int(s)
-    
+    @staticmethod
+    def make_atoll(files):
 
-def make_atoll(files):
+        columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tSR_ANTENNA_LENGHT\tPattern\n"
+        values = []
+        for file_dic in files:
+            antenna_dic = Helper.make_pattern_dic(file_dic['path'])
+            atoll_str = Helper.pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
 
-    columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tSR_ANTENNA_LENGHT\tPattern\n"
-    values = []
-    for file_dic in files:
-        antenna_dic = make_pattern_dic(file_dic['path'])
-        atoll_str = pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
+            freq = float(file_dic['freq'])
 
-        freq = float(file_dic['freq'])
+            band = Helper.calc_band(freq)
+            letter = band[1]
+            tilt_str = str(Helper.calc_tilt(file_dic['tilt'])).zfill(2)
 
-        band = calc_band(freq)
-        letter = band[1]
-        tilt_str = str(calc_tilt(file_dic['tilt'])).zfill(2)
+            Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt_str
+            Gain = Helper.calc_gain(antenna_dic['GAIN'])
+            Manufacturer = '?'
+            Comments = pathlib.Path(file_dic['file'])
+            ELECTRICAL_TILT = file_dic['tilt']
+            Physical_Antenna = antenna_dic['NAME']
+            Min_Frequency = band[2]
+            Max_Frequency = band[3]
+            SR_ANTENNA_NAME = antenna_dic['NAME']
+            FREQUENCY = file_dic['freq']
+            TILT = Helper.calc_tilt(file_dic['tilt'])
+            SR_BAND = letter
+            SR_POLARIZATION = 'X'
+            SR_ANTENNA_LENGHT = 0
+            Pattern = atoll_str
+            line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{SR_ANTENNA_LENGHT}\t{Pattern}\n'
+            values.append(line)
 
-        Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt_str
-        Gain = calc_gain(antenna_dic['GAIN'])
-        Manufacturer = '?'
-        Comments = pathlib.Path(file_dic['file'])
-        ELECTRICAL_TILT = file_dic['tilt']
-        Physical_Antenna = antenna_dic['NAME']
-        Min_Frequency = band[2]
-        Max_Frequency = band[3]
-        SR_ANTENNA_NAME = antenna_dic['NAME']
-        FREQUENCY = file_dic['freq']
-        TILT = calc_tilt(file_dic['tilt'])
-        SR_BAND = letter
-        SR_POLARIZATION = 'X'
-        SR_ANTENNA_LENGHT = 0
-        Pattern = atoll_str
-        line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{SR_ANTENNA_LENGHT}\t{Pattern}\n'
-        values.append(line)
+        with open(r'C:\test\atoll_import.txt', 'w') as fout:
+            fout.write(columns)
+            for value in values:
+                fout.write(value)
 
-    with open(r'C:\test\atoll_import.txt', 'w') as fout:
-        fout.write(columns)
-        for value in values:
-            fout.write(value)
-
-    print(r'C:\test\atoll_import.txt created')
+        messagebox.showinfo('Make Atoll Pattern', r'C:\test\atoll_import.txt created')
 
 
 # ----------------------- App ---------------------------------------------
@@ -299,16 +317,9 @@ class FileList(tk.Frame):
 
                 self.files.append(row)
 
-    def is_valid_regex(self, sreg):
-        try:
-            re.compile(sreg)
-            return True
-        except re.error:
-            return False
-
     def add_files(self):
         # Apply filter
-        if not self.is_valid_regex(self.filter):
+        if not Helper.is_valid_regex(self.filter):
             return
         
         filtered = [f for f in self.files if re.match(self.filter, f['name'])]
@@ -524,7 +535,7 @@ class Drawing(tk.Frame):
                     self.draw_pattern(msi_file['path'], color)
 
                     # draw antenna data
-                    header = read_header(msi_file['path'])
+                    header = Helper.read_header(msi_file['path'])
                     filename = pathlib.Path(msi_file['path']).name
                     header.insert(0, filename)
 
@@ -556,7 +567,7 @@ class Drawing(tk.Frame):
         a = self.padding * w
         r0 = w/4 - a
 
-        dic = make_pattern_dic(msi_file)
+        dic = Helper.make_pattern_dic(msi_file)
         points = dic['HORIZONTAL']
         a = []
         for point in points:
@@ -657,7 +668,7 @@ class App(tk.Tk):
 
     def on_make_atoll(self, *args):
         files = self.file_table.files_selected
-        make_atoll(files)
+        Helper.make_atoll(files)
 
 
 if __name__ == '__main__':
