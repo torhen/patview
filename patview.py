@@ -8,6 +8,27 @@ import math
 import sys
 import os
 
+# ----------- Globals ----------------------
+bands = [
+    ['0700', 'S', 743,    773,    '#f00'],
+    ['0800', 'L', 791,    801,    '#f70'],
+    ['0900', 'G', 930.1,  945.1,  '#fa0'],
+    ['1400', 'V', 1452,   1467,   '#fc0'],
+    ['1800', 'D', 1860.1, 1879.9, '#0f0'],
+    ['2100', 'U', 2110.5, 2120.3, '#0cf'],
+    ['2600', 'E', 2620,   2645,   '#08f'],
+    ['3500', 'W', 3540,   3585,   '#50f'],
+    ['3600', 'Z', 3700,   3800,   '#90f']
+]
+
+def calc_band(f):
+    for band in bands:
+        fmin = band[2]
+        fmax = band[3]
+        if fmin <= f <= fmax:
+            return band
+    return []
+
 def make_pattern_dic(msi_path):
     with open(msi_path, encoding='latin1') as fin:
         lines = fin.readlines()
@@ -77,6 +98,62 @@ def pairs2atoll(pairs_hori, pairs_vert):
         res = res + ' ' + part
 
     return res
+
+def calc_gain(s):
+    l = s.split()
+    value = l[0]
+    unit = l[1]
+
+    if unit == 'dBd':
+        add = 2.15
+    elif unit == 'dBi':
+        add = 0
+    else:
+        assert 'cant calc gain'
+
+    return round(float(value) + add, 2)
+
+def make_atoll(files):
+
+    columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tSR_ANTENNA_LENGHT\tPattern\n"
+    values = []
+    for file_dic in files:
+        antenna_dic = make_pattern_dic(file_dic['path'])
+        atoll_str = pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
+
+        freq = float(file_dic['freq'])
+
+        band = calc_band(freq)
+        letter = band[1]
+        tilt = str(int(file_dic['tilt'])).zfill(2)
+
+        Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt
+        Gain = calc_gain(antenna_dic['GAIN'])
+        Manufacturer = '?'
+        Comments = pathlib.Path(file_dic['file'])
+        ELECTRICAL_TILT = file_dic['tilt']
+        Physical_Antenna = antenna_dic['NAME']
+        Min_Frequency = band[2]
+        Max_Frequency = band[3]
+        SR_ANTENNA_NAME = antenna_dic['NAME']
+        FREQUENCY = file_dic['freq']
+        TILT = int(file_dic['tilt'])
+        SR_BAND = letter
+        SR_POLARIZATION = 'X'
+        SR_ANTENNA_LENGHT = 0
+        Pattern = atoll_str
+        line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{SR_ANTENNA_LENGHT}\t{Pattern}\n'
+        values.append(line)
+
+    with open(r'C:\test\atoll_import.txt', 'w') as fout:
+        fout.write(columns)
+        for value in values:
+            fout.write(value)
+
+    print(r'C:\test\atoll_import.txt created')
+
+
+# ----------------------- App ---------------------------------------------
 
 class FolderBrowser(tk.Frame):
     def __init__(self, parent_window, file_list, flag):
@@ -392,19 +469,14 @@ class Drawing(tk.Frame):
         self.canvas.delete("all")
 
 
-        def rect(band, letter, f0, f1, color="#333"):
+        def rect(band_name, letter, f0, f1, color="#333"):
             self.canvas.create_rectangle(self.scale(f0),50, self.scale(f1), 100, width=0.1, fill=color)
-            self.canvas.create_text(self.scale(f0), 20, text=band, font=("Helvetica", 12), fill=color,anchor='nw')
+            self.canvas.create_text(self.scale(f0), 20, text=band_name, font=("Helvetica", 12), fill=color,anchor='nw')
 
-        rect('0700', 'S', 743,    773,    '#f00')
-        rect('0800', 'L', 791,    801,    '#f70')
-        rect('0900', 'G', 930.1,  945.1,  '#fa0')
-        rect('1400', 'V', 1452,   1467,   '#fc0')
-        rect('1800', 'D', 1860.1, 1879.9, '#0f0')
-        rect('2100', 'U', 2110.5, 2120.3, '#0cf')
-        rect('2600', 'E', 2620,   2645,   '#08f')
-        rect('3500', 'W', 3540,   3585,   '#50f')
-        rect('3600', 'Z', 3700,   3800,   '#90f')
+
+        for band in bands:
+            rect(band[0], band[1], band[2], band[3], band[4])
+
 
 
         # create frequency lines
@@ -529,7 +601,7 @@ class App(tk.Tk):
         self.menu_bar = tk.Menu(self)
         # Create a File menu
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
-        file_menu.add_command(label="Make Atoll Import", command=self.make_atoll)
+        file_menu.add_command(label="Make Atoll Import", command=self.on_make_atoll)
 
         self.menu_bar.add_cascade(label="Action", menu=file_menu)
 
@@ -575,30 +647,10 @@ class App(tk.Tk):
         self.file_table.get_files(self.root_folder, 'A')
         self.file_table.select_file(self.start_msi)
 
-    def make_atoll(self, *args):
-        file_dic = self.file_table.files_selected[0]
-        antenna_dic = make_pattern_dic(file_dic['path'])
-        atoll_str = pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
+    def on_make_atoll(self, *args):
+        files = self.file_table.files_selected
+        make_atoll(files)
 
-        res = {}
-        res['Name'] = antenna_dic['NAME'].split('_')[0] + 'Z' +  '_X' + '_T' + str(int(file_dic['tilt'])).zfill(2)
-        res['frequency'] = file_dic['freq']
-        res['Comments'] = pathlib.Path(file_dic['file'])
-        res['Pattern'] = atoll_str
-        columns = []
-        values = []
-        for entry in res:
-            columns.append(entry)
-            values.append(str(res[entry]))
-
-        columns = '\t'.join(columns) + '\n'
-        values = '\t'.join(values) + '\n'
-
-        with open(r'C:\test\atoll_import.txt', 'w') as fout:
-            fout.write(columns )
-            fout.write(values)
-
-        print(res)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
