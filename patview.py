@@ -25,8 +25,10 @@ class Settings:
 
     pattern_colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
 
-# ------- Utility functions -------
+    extract_frequency_from_filename = r'.*_(\d{3,4})(_|\.|MHz)'
+    extract_tilt_from_filename = r'.*_(\d\d)D?T[_\.]'
 
+# ------- Utility functions -------
 class Helper:
     @staticmethod
     def calc_band(f):
@@ -299,12 +301,16 @@ class FileList(tk.Frame):
 
         for item in pathlib.Path(folder).iterdir():
             if item.is_file() and not item in self.tree.get_children(''):
-                r = re.match(r'.*_(-\d|\d\d)T.*', item.name)
+
+                # ---- extract frequency from filename
+                r = re.match(Settings.extract_tilt_from_filename, item.name)
                 if r:
                     tilt = r.group(1)
                 else:
                     tilt = ''
-                r = re.match(r'.*_(\d{3,4})_', item.name)
+
+                # ---- extract frequency from filename    
+                r = re.match(Settings.extract_frequency_from_filename, item.name)
                 if r:
                     freq = r.group(1)
                 else:
