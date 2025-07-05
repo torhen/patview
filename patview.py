@@ -501,6 +501,7 @@ class Drawing(tk.Frame):
         self.canvas = tk.Canvas(self, relief="sunken", bd=1)
         self.canvas.pack(expand=True, fill='both')
         self.canvas.bind("<Configure>", self.on_resize)
+        self.canvas.bind("<Motion>", self.on_mouse_move)
 
 
     def on_radio_change(self, *args):
@@ -509,6 +510,12 @@ class Drawing(tk.Frame):
 
     def on_resize(self, e):
         self.draw()
+
+    def on_mouse_move(self, e):
+        radio_selected = self.radio_content.get()
+        if radio_selected == 2:
+            f = int(self.unscale(e.x))
+            self.app.set_statusbar(f'{f} MHz')
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
@@ -599,12 +606,21 @@ class Drawing(tk.Frame):
             self.canvas.create_line(x0, y0, x1, y1)
 
     
-    def scale(self, x):
+    def scale(self, f):
         w = self.winfo_width()
         h = self.winfo_height()
         fmin, fmax = 700, 3810
         space = 10
-        return (x - fmin) / (fmax - fmin) * (w - 2 * space) + space
+        x = (f - fmin) / (fmax - fmin) * (w - 2 * space) + space
+        return x
+    
+    def unscale(self, x):
+        w = self.winfo_width()
+        h = self.winfo_height()
+        fmin, fmax = 700, 3810
+        space = 10
+        f = (fmax - fmin) * (x - space) / (w - 2 * space) + fmin
+        return f
 
     def draw_diagrams(self):
             pattern_colors = Settings.pattern_colors
