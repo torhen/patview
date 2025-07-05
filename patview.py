@@ -11,17 +11,33 @@ import os
 
 # ----------- Globals ----------------------
 class Settings:
+
+    # bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl
     bands = [
-        ['0700', 'S', 743,    773,    '#f00'],
-        ['0800', 'L', 791,    801,    '#f70'],
-        ['0900', 'G', 930.1,  945.1,  '#fa0'],
-        ['1400', 'V', 1452,   1467,   '#fc0'],
-        ['1800', 'D', 1860.1, 1879.9, '#0a0'],
-        ['2100', 'U', 2110.5, 2120.3, '#0cf'],
-        ['2600', 'E', 2620,   2645,   '#08f'],
-        ['3500', 'W', 3540,   3585,   '#50f'],
-        ['3600', 'Z', 3700,   3800,   '#90f']
+        ['0700', 'S', 743,    773,     738,  788, (  0, 100, 40)],
+        ['0800', 'L', 791,    801,     791,  821, ( 30, 100, 40)],
+        ['0900', 'G', 930.1,  945.1,   925,  960, ( 60, 100, 40)],
+        ['1400', 'V', 1452,   1467,   1428, 1511, ( 90, 100, 40)],
+        ['1800', 'D', 1860.1, 1879.9, 1805, 1880, (120, 100, 40)],
+        ['2100', 'U', 2110.5, 2120.3, 2110, 2170, (150, 100, 40)],
+        ['2600', 'E', 2620,   2645,   2594, 2690, (180, 100, 40)],
+        ['3500', 'W', 3540,   3585,   3400, 3600, (210, 100, 40)],
+        ['3600', 'Z', 3700,   3800,   3600, 3800, (240, 100, 40)]
     ]
+
+    std_freqs = [
+        738, 746, 757, 768, 777, 788,
+        791, 798, 803, 807, 814, 821,
+        925, 943, 960,
+        1428, 1450, 1463, 1475, 1496, 1511,
+        1805, 1830, 1845, 1859, 1880,
+        2110, 2140, 2170,
+        2594, 2622, 2658, 2665, 2690,
+        3400, 3433, 3467, 3500, 3533, 3567, 3600,
+        3600, 3633, 3667, 3700, 3733, 3767, 3800
+    ]
+
+
 
     pattern_colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
 
@@ -31,6 +47,44 @@ class Settings:
 
 # ------- Utility functions -------
 class Helper:
+    @staticmethod
+    def hsl(h, s=100, l=50):
+        """
+        Convert HSL color to RGB hex format (#ffffff).
+        h: Hue [0, 360)
+        s: Saturation [0, 100]
+        l: Lightness [0, 100]
+        Returns: Hex color string
+        """
+        s /= 100
+        l /= 100
+
+        c = (1 - abs(2 * l - 1)) * s  # Chroma
+        x = c * (1 - abs((h / 60) % 2 - 1))
+        m = l - c/2
+
+        if 0 <= h < 60:
+            r_, g_, b_ = c, x, 0
+        elif 60 <= h < 120:
+            r_, g_, b_ = x, c, 0
+        elif 120 <= h < 180:
+            r_, g_, b_ = 0, c, x
+        elif 180 <= h < 240:
+            r_, g_, b_ = 0, x, c
+        elif 240 <= h < 300:
+            r_, g_, b_ = x, 0, c
+        elif 300 <= h < 360:
+            r_, g_, b_ = c, 0, x
+        else:
+            r_, g_, b_ = 0, 0, 0
+
+        r = round((r_ + m) * 255)
+        g = round((g_ + m) * 255)
+        b = round((b_ + m) * 255)
+
+        return f'#{r:02x}{g:02x}{b:02x}'
+    
+
     @staticmethod
     def calc_band(f):
         for band in Settings.bands:
@@ -505,18 +559,32 @@ class Drawing(tk.Frame):
         self.canvas.delete("all")
 
 
-        def rect(band_name, letter, f0, f1, color="#333"):
-            self.canvas.create_text(self.scale(f0), 20, text=letter, font=("Helvetica", 10), fill=color, anchor='nw')
-            self.canvas.create_text(self.scale(f0), 40, text=band_name, font=("Helvetica", 10), fill=color, anchor='nw')
-            self.canvas.create_rectangle(self.scale(f0),80, self.scale(f1), 110, width=0.1, fill=color, outline="")
+        def rect(band):
+            bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = band
+            bandname = str(int(bandname)) # delete leading zero because of space
+            self.canvas.create_text(self.scale(fmin_sr), 20, text=letter, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
+            self.canvas.create_text(self.scale(fmin_sr), 40, text=bandname, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
+   
 
+            h, s, l = hsl
+            hsl1 = (h, s, 80)
+            self.canvas.create_rectangle(self.scale(fmin_all),80, self.scale(fmax_all), 120, width=0.1, fill=Helper.hsl(*hsl1), outline="")
+            self.canvas.create_rectangle(self.scale(fmin_sr),80, self.scale(fmax_sr), 120, width=0.1, fill=Helper.hsl(*hsl), outline="")
 
 
         for band in Settings.bands:
-            rect(band[0], band[1], band[2], band[3], band[4])
+            rect(band)
 
+        # create standard frequs
+        for f in Settings.std_freqs:
+            x0 = self.scale(f)
+            y0 = 130
+            x1 = x0
+            y1 = 150
 
+            self.canvas.create_line(x0, y0, x1, y1, fill="#aaa")
 
+    
         # create frequency lines
         for entry in self.files:
             try:
@@ -526,14 +594,15 @@ class Drawing(tk.Frame):
             x0 = self.scale(f)
             y0 = 70
             x1 = x0
-            y1 = 120
+            y1 = 130
 
             self.canvas.create_line(x0, y0, x1, y1)
+
     
     def scale(self, x):
         w = self.winfo_width()
         h = self.winfo_height()
-        fmin, fmax = 700, 4000
+        fmin, fmax = 700, 3810
         space = 10
         return (x - fmin) / (fmax - fmin) * (w - 2 * space) + space
 
