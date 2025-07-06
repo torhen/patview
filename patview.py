@@ -569,14 +569,18 @@ class Drawing(tk.Frame):
         def rect(band):
             bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = band
             bandname = str(int(bandname)) # delete leading zero because of space
-            self.canvas.create_text(self.scale(fmin_sr), 20, text=letter, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
-            self.canvas.create_text(self.scale(fmin_sr), 40, text=bandname, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
-   
 
             h, s, l = hsl
             hsl1 = (h, s, 80)
+            # create band for all operators
             self.canvas.create_rectangle(self.scale(fmin_all),80, self.scale(fmax_all), 120, width=0.1, fill=Helper.hsl(*hsl1), outline="")
-            self.canvas.create_rectangle(self.scale(fmin_sr),80, self.scale(fmax_sr), 120, width=0.1, fill=Helper.hsl(*hsl), outline="")
+            # creat sunrise bands 
+            self.canvas.create_rectangle(self.scale(fmin_sr),85, self.scale(fmax_sr), 115, width=0.1, fill=Helper.hsl(*hsl), outline="")
+
+            # create text
+            self.canvas.create_text(self.scale(fmin_sr), 20, text=letter, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
+            self.canvas.create_text(self.scale(fmin_sr), 40, text=bandname, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
+
 
 
         for band in Settings.bands:
