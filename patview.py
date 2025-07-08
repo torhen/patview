@@ -512,7 +512,6 @@ class Drawing(tk.Frame):
 
         super().__init__(parent_window)
 
-
         # ------- Radiobuttons -----
         self.radio_content = tk.IntVar()
         self.radio_content.set(1) 
@@ -521,14 +520,24 @@ class Drawing(tk.Frame):
         self.radio1.pack(side='left')
         self.radio2 = tk.Radiobutton(self.radio_frame, text='frequencies', variable=self.radio_content, value=2, command=self.on_radio_change)
         self.radio2.pack(side='left')
+        self.radio2 = tk.Radiobutton(self.radio_frame, text='table', variable=self.radio_content, value=3, command=self.on_radio_change)
+        self.radio2.pack(side='left')
         self.radio_frame.pack(anchor='w')
 
+        self.subframe = tk.Frame(self)
+        self.subframe.pack(expand=True, fill='both')
 
         # ----- Canvas ---
-        self.canvas = tk.Canvas(self, relief="sunken", bd=1)
-        self.canvas.pack(expand=True, fill='both')
+        self.canvas = tk.Canvas(self.subframe, relief="sunken", bd=1)
+        # self.canvas.pack(expand=True, fill='both')
+        self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
         self.canvas.bind("<Configure>", self.on_resize)
         self.canvas.bind("<Motion>", self.on_mouse_move)
+
+
+        # ---- Treeview for table on top of canvas ----
+        self.tree = ttk.Treeview(self.subframe, show="headings")
+        self.tree.place(x=0, y=0, relwidth=1, relheight=1)
 
 
     def on_radio_change(self, *args):
@@ -581,15 +590,24 @@ class Drawing(tk.Frame):
         radio_selected = self.radio_content.get()
         if radio_selected == 1:
             self.draw1()
-        else:
+        elif radio_selected == 2:
             self.draw2()
+        else:
+            self.draw3()
 
     def draw1(self):
+        self.tree.place_forget()
+        self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
+
         self.canvas.delete("all")
         self.draw_axis()
         self.draw_diagrams()
 
     def draw2(self):
+        self.tree.place_forget()
+        self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
+
+
         self.canvas.delete("all")
 
 
@@ -635,6 +653,21 @@ class Drawing(tk.Frame):
             y1 = 130
 
             self.canvas.create_line(x0, y0, x1, y1)
+
+    def draw3(self):
+        self.canvas.place_forget()
+        self.tree.place(x=0, y=0, relwidth=1, relheight=1)
+
+        self.tree.config(columns=("file"))
+        self.tree.heading("file", text="Name")
+
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        for file in self.files:
+            print(file['file'])
+            self.tree.insert("", "end", values=file['file'])
+
 
     
     def scale(self, f):
