@@ -169,18 +169,21 @@ class Helper:
 
     @staticmethod
     def calc_gain(s):
-        l = s.split()
-        value = l[0]
-        unit = l[1]
+        try:
+            l = s.split()
+            value = l[0]
+            unit = l[1]
 
-        if unit == 'dBd':
-            add = 2.15
-        elif unit == 'dBi':
-            add = 0
-        else:
-            assert 'cant calc gain'
+            if unit == 'dBd':
+                add = 2.15
+            elif unit == 'dBi':
+                add = 0
+            else:
+                assert 'cant calc gain'
 
-        return round(float(value) + add, 2)
+            return round(float(value) + add, 2)
+        except:
+            return ''
 
     @staticmethod
     def calc_tilt(s):
@@ -238,6 +241,28 @@ class Helper:
 
         messagebox.showinfo('Make Atoll Pattern', f'{Settings.atoll_import_file} created')
 
+    @staticmethod
+    def get_header_infos(files):
+        res = []
+        for file in files:
+            if not file['path'].lower().endswith('.msi'):
+                continue
+
+            path = file['path']
+            header = Helper.read_header(file['path'])
+            for entry in header:
+                if entry.startswith('GAIN'):
+                    gain_str = entry.strip()
+                    gain_str = gain_str.strip('GAIN').strip()
+                    gain_float = Helper.calc_gain(gain_str)
+
+            dic = {
+                'path' : path,
+                'file' : file['file'],
+                'gain' : gain_float
+            }
+            res.append(dic)
+        return res    
 
     
 # ----------------------- App ---------------------------------------------
@@ -512,6 +537,9 @@ class Drawing(tk.Frame):
         # ---- Treeview for table on top of canvas ----
         self.tree = ttk.Treeview(self.subframe, show="headings")
         self.tree.place(x=0, y=0, relwidth=1, relheight=1)
+        self.tree.bind('<Button-1>', self.on_header_click)
+        self.sort_by = 'file'
+        self.sort_ascending = True
 
 
     def on_radio_change(self, *args):
@@ -526,6 +554,17 @@ class Drawing(tk.Frame):
         if radio_selected == 2:
             f = int(self.unscale(e.x))
             self.app.set_statusbar(f'{f} MHz')
+
+    def on_header_click(self,e):               
+        region = self.tree.identify_region(e.x, e.y)
+        if region == 'heading':
+            column = self.tree.identify_column(e.x)
+            new_sort_by = self.tree.heading(column)['text']
+            if new_sort_by != self.sort_by:
+                self.sort_by = new_sort_by
+            else:
+                self.sort_ascending = not self.sort_ascending
+            self.draw3()
 
 
     def draw_circle(self, center_x, center_y, radius, **kwargs):
@@ -639,19 +678,12 @@ class Drawing(tk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        for file in self.files:
-            if not file['path'].lower().endswith('.msi'):
-                continue
 
-            path = file['path']
-            header = Helper.read_header(file['path'])
-            for entry in header:
-                if entry.startswith('GAIN'):
-                    gain_str = entry.strip()
-                    gain_str = gain_str.strip('GAIN').strip()
-                    gain_float = Helper.calc_gain(gain_str)
-            self.tree.insert("", "end", values=(file['file'], gain_float))              
+        header_infos = Helper.get_header_infos(self.files)
+        header_infos = sorted(header_infos, key=lambda x: x[self.sort_by], reverse=not self.sort_ascending)
 
+        for entry in header_infos:
+            self.tree.insert("", "end", values=(entry['file'], entry['gain']))              
 
     
     def scale(self, f):
