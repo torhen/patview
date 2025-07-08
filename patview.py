@@ -239,33 +239,7 @@ class Helper:
         messagebox.showinfo('Make Atoll Pattern', f'{Settings.atoll_import_file} created')
 
 
-    def calc_max_gain(files):
-        print("path\tgain_str\tgain_dBi")
-        res = []
-        for file in files:
-            if not file['path'].lower().endswith('.msi'):
-                continue
-            header = Helper.read_header(file['path'])
-            path = file['path']
-            for entry in header:
-                if entry.startswith('GAIN'):
-                    gain_str = entry.strip()
-                    gain_str = gain_str.strip('GAIN').strip()
-                    gain_float = Helper.calc_gain(gain_str)
-
-            row = [path, gain_str, gain_float]
-            res.append(row)
-        
-
-        res = sorted(res, key=lambda x: x[-1], reverse=True)
-
-        # output
-        for row in res:
-            for entry in row:
-                print(entry, end='\t')
-            print()
-
-
+    
 # ----------------------- App ---------------------------------------------
 
 class FolderBrowser(tk.Frame):
@@ -658,15 +632,25 @@ class Drawing(tk.Frame):
         self.canvas.place_forget()
         self.tree.place(x=0, y=0, relwidth=1, relheight=1)
 
-        self.tree.config(columns=("file"))
-        self.tree.heading("file", text="Name")
+        self.tree.config(columns=("file", 'gain'))
+        self.tree.heading("file", text="file")
+        self.tree.heading("gain", text="gain")
 
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         for file in self.files:
-            print(file['file'])
-            self.tree.insert("", "end", values=file['file'])
+            if not file['path'].lower().endswith('.msi'):
+                continue
+
+            path = file['path']
+            header = Helper.read_header(file['path'])
+            for entry in header:
+                if entry.startswith('GAIN'):
+                    gain_str = entry.strip()
+                    gain_str = gain_str.strip('GAIN').strip()
+                    gain_float = Helper.calc_gain(gain_str)
+            self.tree.insert("", "end", values=(file['file'], gain_float))              
 
 
     
@@ -789,7 +773,6 @@ class App(tk.Tk):
         self.menu_bar = tk.Menu(self)
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
         file_menu.add_command(label="Make Atoll Import", command=self.on_make_atoll)
-        file_menu.add_command(label="Calc Max Gain", command=self.on_calc_max_gain)
 
         self.menu_bar.add_cascade(label="Action", menu=file_menu)
 
@@ -847,10 +830,6 @@ class App(tk.Tk):
     def on_make_atoll(self, *args):
         files = self.file_table.files_selected
         Helper.make_atoll(files)
-
-    def on_calc_max_gain(self, *args):
-        files = self.file_table.files_selected
-        Helper.calc_max_gain(files)
 
     def set_statusbar(self, s):
         self.status_var.set(s)
