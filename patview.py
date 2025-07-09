@@ -199,7 +199,7 @@ class Helper:
         columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tPattern\n"
         values = []
         for file_dic in files:
-            header_info = Helper.get_header_infos([file_dic])[0]
+            header_info = Helper.inspect_msis([file_dic])[0]
             # print(file_dic)
             antenna_dic = Helper.make_pattern_dic(file_dic['path'])
             atoll_str = Helper.pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
@@ -224,9 +224,8 @@ class Helper:
             TILT = header_info['tilt']
             SR_BAND = header_info['letter']
             SR_POLARIZATION = 'X'
-            SR_ANTENNA_LENGHT = 0
             Pattern = atoll_str
-            line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\tX\t{Pattern}\n'
+            line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{Pattern}\n'
             values.append(line)
 
         with open(Settings.atoll_passive_import_file, 'w') as fout:
@@ -281,16 +280,13 @@ class Helper:
 
         return dic
 
-    def get_header_infos(files):
+    def inspect_msis(files, deep):
         res = []
-        for file in files:
-            full_path = file['path']
-
-            file_info = Helper.inspect_msi(full_path, deep=True)
+        for full_path in files:
+            file_info = Helper.inspect_msi(full_path, deep=deep)
             if not file_info:
                 continue
             res.append(file_info)
-
         return res    
     
     def extract_tilt_from_filename(filename):
@@ -298,15 +294,14 @@ class Helper:
         if r:
             return r.group(1)
         else:
-            return ''
+            return '-'
         
     def extract_freq_from_filename(filename):
         r = re.match(Settings.extract_freq_from_filename_re, filename)
         if r:
             return r.group(1)
         else:
-            return ''
-
+            return '-'
     
 # ----------------------- App ---------------------------------------------
 class FolderBrowser(tk.Frame):
@@ -323,7 +318,6 @@ class FolderBrowser(tk.Frame):
         self.tree.bind('<<TreeviewOpen>>', self.add_sub_folders)
         self.tree.bind("<<TreeviewSelect>>", self.get_and_add_files)
         self.tree.pack(ipadx=100, expand=True, fill='both')
-
 
     def set_folder(self, folder):
         path_parts = folder.parts
@@ -351,39 +345,38 @@ class FolderBrowser(tk.Frame):
 
 class FileList(tk.Frame):
     def __init__(self, parent_window, drawing, app):
-        self.files = []
-        self.files_filtered = []
-        self.files_selected = []
+        self.file_dics = []
+        # self.file_dics_filtered = []
         self.parent_window = parent_window
         self.drawing = drawing
         self.app = app
         self.flag = 'A'
-        self.filter = ".+"
+        self.filter = ".*"
         self.sort_order = {'#0': True, '#1': True, '#2': True, '#3': True}
         super().__init__(parent_window)
 
         # ---Filter
-        self.filter_var = tk.StringVar(value='.+')
+        self.filter_var = tk.StringVar(value=self.filter)
         self.filter_var.trace_add("write", self.on_filter_change)
         self.filter1 = tk.Entry(self, textvariable=self.filter_var)
         self.filter1.pack(fill='x')
 
+        # ---- sort order
+        self.sort_by = 'file'
+        self.sort_asc = True
+
         # ---- Tree---
-        self.tree = ttk.Treeview(self)
-        self.tree.config(selectmode='extended')
+        self.tree = ttk.Treeview(self,  show="headings")
+        # self.tree.config(selectmode='extended')
 
 
-        self.tree['columns'] = ('flag', 'freq', 'tilt')
-        self.tree.heading('flag', text='flag')
-        self.tree.heading('freq', text='Frequency')
-        self.tree.heading('tilt', text='Tilt')
-        
-        self.tree.heading('#0', text='files')
+        self.tree.config(columns=("file", 'flag','freq', 'tilt'))
+        self.tree.heading('file', text='file')
         self.tree.heading('flag', text='flag')
         self.tree.heading('freq', text='freq')
         self.tree.heading('tilt', text='tilt')
-
-        self.tree.column('#0', width=300, anchor='w')
+        
+        self.tree.column('file', width=300, anchor='w')
         self.tree.column('flag', width=10, anchor='w')
         self.tree.column('tilt', width=10, anchor='w')
         self.tree.column('freq', width=20, anchor='w')
@@ -421,95 +414,56 @@ class FileList(tk.Frame):
     def read_files(self, folder, flag):
 
         # delete files only from source FileBrowser
-        self.files = [row for row in self.files if row['flag'] != flag]
+        self.file_dics = [row for row in self.file_dics if row['flag'] != flag]
 
+        # read file
         for item in pathlib.Path(folder).iterdir():
             if item.is_file() and not item in self.tree.get_children(''):
-
-                # ---- extract tilt from filename
-                tilt = Helper.extract_tilt_from_filename(item.name)
-                r = re.match(Settings.extract_tilt_from_filename_re, item.name)
-                if r:
-                    tilt = r.group(1)
-                else:
-                    tilt = ''
-
-                # ---- extract frequency from filename    
-                freq = Helper.extract_freq_from_filename(item.name)
-
-                row = {
-                    'path' :str(item),
-                    'flag' : flag,
-                    'name' : item.name,
-                    'freq' : freq,
-                    'tilt' : tilt
-                }
-
-                self.files.append(row)
+                full_path = str(item)
+                file_info = Helper.inspect_msi(full_path, deep=False)
+                if file_info:
+                    file_info['flag'] = flag
+                    self.file_dics.append(file_info)
 
     def add_files(self):
         # Apply filter
         if not Helper.is_valid_regex(self.filter):
             return
         
-        filtered = [f for f in self.files if re.match(self.filter, f['name'])]
+        filtered = [f for f in self.file_dics if re.match(self.filter, f['file'])]
+        self.count_filtered = len(filtered)
+
+        filtered_sorted = sorted(filtered, key=lambda x: x[self.sort_by], reverse = not self.sort_asc)
 
         # delete all entries
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # add all entries
-        self.files_filtered = []
+        for dic in filtered_sorted:
+            if dic['path'] not in self.tree.get_children(''):
+                self.tree.insert('', 'end', iid=dic['path'], values= (dic['file'], dic['flag'], dic['freq'], dic['tilt'] ))
 
-        for row in filtered:
-            if row['path'] not in self.tree.get_children(''):
-                self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
-                dic = {'path' : row['path'],
-                       'file' : row['name'],
-                       'flag' : row['flag'],
-                       'freq' : row['freq'],
-                       'tilt' : row['tilt']
-                       }
-                self.files_filtered.append(dic)
+        self.set_statusbar()
 
-        
-        s = f'files ({len(filtered)})'
-        self.tree.heading('#0', text=s)
+    def set_statusbar(self):
 
-    def sort_files(self, columns, ascending):
-        self.files = sorted(self.files, key=lambda row: row[columns], reverse= not ascending)
+        files_all = len(self.file_dics)
+        files_selected = len(self.tree.selection())
+
+        s = f'files found:{files_all} filtered:{self.count_filtered} selected:{files_selected}'
+        self.app.set_statusbar(s)
+
 
     def on_header_click(self,e):               
         region = self.tree.identify_region(e.x, e.y)
         if region == 'heading':
             column = self.tree.identify_column(e.x)
-
-            if column == '#0':
-                self.sort_files('name', self.sort_order[column])
-                self.sort_order[column] = not self.sort_order[column]
-
-            if column == '#1':
-                self.sort_files('flag', self.sort_order[column])
-                self.sort_order[column] = not self.sort_order[column]
-
-            if column == '#2':
-                self.sort_files('freq', self.sort_order[column])
-                self.sort_order[column] = not self.sort_order[column]
-
-            if column == '#3':
-                self.sort_files('tilt', self.sort_order[column])
-                self.sort_order[column] = not self.sort_order[column]
-
-
-            filtered = [f for f in self.files if re.match(self.filter, f['name'])]
-
-            # delete all entries
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-
-            # add all entries
-            for row in filtered:
-                self.tree.insert('', 'end', row['path'], text=row['name'], values= [row['flag'], row['freq'], row['tilt'] ])
+            new_sort_by = self.tree.heading(column)['text']
+            if new_sort_by != self.sort_by:
+                self.sort_by = new_sort_by
+            else:
+                self.sort_asc = not self.sort_asc
+            self.add_files()
 
     def on_double_click(self, e):
         item_id = self.tree.identify_row(e.y)
@@ -523,17 +477,10 @@ class FileList(tk.Frame):
 
 
     def draw(self, e):
-        self.files_selected = []
-        for path in self.tree.selection():
-            for entry in self.files_filtered:
-                if entry['path'] == path:
-                    self.files_selected.append(entry)
+        full_paths = self.tree.selection()
+        self.drawing.draw(full_paths)
 
-        self.drawing.draw(self.files_selected)
-
-        s = f'{len(self.files_selected)} files selected'
-        self.app.set_statusbar(s)
-
+        self.set_statusbar()
 
     def set_filter(self, filter_str):
         self.filter = filter_str
@@ -702,11 +649,10 @@ class Drawing(tk.Frame):
             self.canvas.create_text(self.scale(fmin_sr), 40, text=bandname, font=("Consolas", 9), fill=Helper.hsl(*hsl), anchor='nw')
 
 
-
         for band in Settings.bands:
             rect(band)
 
-        # create standard frequs
+        # create standard freqs
         for f in Settings.std_freqs:
             x0 = self.scale(f)
             y0 = 130
@@ -717,7 +663,8 @@ class Drawing(tk.Frame):
 
     
         # create frequency lines
-        for entry in self.files:
+        header_infos = Helper.inspect_msis(self.files, deep=False)
+        for entry in header_infos:
             try:
                 f = float(entry['freq'])
             except:
@@ -733,17 +680,14 @@ class Drawing(tk.Frame):
         self.canvas.place_forget()
         self.tree.place(x=0, y=0, relwidth=1, relheight=1)
 
-
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-
-        header_infos = Helper.get_header_infos(self.files)
+        header_infos = Helper.inspect_msis(self.files, deep=True)
         header_infos = sorted(header_infos, key=lambda x: x[self.sort_by], reverse=not self.sort_ascending)
 
         for entry in header_infos:
             self.tree.insert("", "end", values=(entry['file'], entry['vendor'], entry['freq'], entry['bandname'], entry['letter'], entry['tilt'], entry['gain']))              
-
     
     def scale(self, f):
         w = self.winfo_width()
@@ -773,17 +717,13 @@ class Drawing(tk.Frame):
                 app.set_statusbar("Drawing patterns limited to 50")
 
             for i, msi_file in enumerate(files):
-                if pathlib.Path(msi_file['path']).suffix.lower() == '.msi':
+                if pathlib.Path(msi_file).suffix.lower() == '.msi':
                     color = pattern_colors[i % len(pattern_colors)]
                     # draw pattern
-                    self.draw_pattern(msi_file['path'], color)
-
-                    # draw antenna data
-                    header = Helper.read_header(msi_file['path'])
-                    filename = pathlib.Path(msi_file['path']).name
-                    header.insert(0, filename)
+                    self.draw_pattern(msi_file, color)
 
                     # lines for one pattern
+                    header = Helper.read_header(msi_file)
                     if len(files) <= 1: 
                         for k, line in enumerate(header):
                             line = line.strip()
@@ -795,7 +735,7 @@ class Drawing(tk.Frame):
 
                     # show 1 line for one paattern
                     else:
-                        text = msi_file['file']
+                        text = msi_file
                         for k, line in enumerate(header):
                             line = line.strip('\n').strip()
                             if len(line) > 0:
