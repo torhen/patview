@@ -41,8 +41,8 @@ class Settings:
 
     pattern_colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
 
-    extract_frequency_from_filename = r'.*_(\d{3,4})(_|\.|MHz)'
-    extract_tilt_from_filename = r'.*_(\d\d)D?T[_\.]'
+    extract_freq_from_filename_re = r'.*_(\d{3,4})(_|\.|MHz)'
+    extract_tilt_from_filename_re = r'.*_((\d|-)\d)D?T[_\.]'
     atoll_import_file = r'C:\test\atoll_import.txt'
 
 # ------- Utility functions -------
@@ -88,8 +88,8 @@ class Helper:
     @staticmethod
     def calc_band(f):
         for band in Settings.bands:
-            fmin = band[2]-10
-            fmax = band[3]+10
+            fmin = band[2] - 1 # +- one MHz tolerance
+            fmax = band[3] + 1
             if fmin <= f <= fmax:
                 return band
         return []
@@ -190,7 +190,6 @@ class Helper:
         s = s.strip()
         if s == '':
             return 0
-        
         return int(s)
 
     @staticmethod
@@ -250,23 +249,56 @@ class Helper:
 
             path = file['path']
             header = Helper.read_header(file['path'])
+            vendor = "unknown"
             for entry in header:
+                if "huawei" in entry.lower():
+                    vendor = "Huawei"
+
                 if entry.startswith('GAIN'):
                     gain_str = entry.strip()
                     gain_str = gain_str.strip('GAIN').strip()
                     gain_float = Helper.calc_gain(gain_str)
 
+            tilt = Helper.extract_tilt_from_filename(file['file'])
+            freq = Helper.extract_freq_from_filename(file['file'])
+            band = Helper.calc_band(int(freq))
+            if len(band) > 0:
+                bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = band
+            else:
+                bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = ['','','','','','','']
+
             dic = {
                 'path' : path,
                 'file' : file['file'],
-                'gain' : gain_float
+                'freq' : freq,
+                'bandname' : bandname,
+                'letter' : letter,
+                'tilt' : tilt,
+                'gain' : gain_float,
+                'vendor' : vendor
             }
             res.append(dic)
+
         return res    
+    
+    @staticmethod
+    def extract_tilt_from_filename(filename):
+        r = re.match(Settings.extract_tilt_from_filename_re, filename)
+        if r:
+            return r.group(1)
+        else:
+            return ''
+        
+    @staticmethod
+    def extract_freq_from_filename(filename):
+        r = re.match(Settings.extract_freq_from_filename_re, filename)
+        if r:
+            return r.group(1)
+        else:
+            return ''
 
     
 # ----------------------- App ---------------------------------------------
-
 class FolderBrowser(tk.Frame):
     def __init__(self, parent_window, file_list, flag):
         super().__init__(parent_window)
@@ -384,19 +416,16 @@ class FileList(tk.Frame):
         for item in pathlib.Path(folder).iterdir():
             if item.is_file() and not item in self.tree.get_children(''):
 
-                # ---- extract frequency from filename
-                r = re.match(Settings.extract_tilt_from_filename, item.name)
+                # ---- extract tilt from filename
+                tilt = Helper.extract_tilt_from_filename(item.name)
+                r = re.match(Settings.extract_tilt_from_filename_re, item.name)
                 if r:
                     tilt = r.group(1)
                 else:
                     tilt = ''
 
                 # ---- extract frequency from filename    
-                r = re.match(Settings.extract_frequency_from_filename, item.name)
-                if r:
-                    freq = r.group(1)
-                else:
-                    freq = ''
+                freq = Helper.extract_freq_from_filename(item.name)
 
                 row = {
                     'path' :str(item),
@@ -536,6 +565,24 @@ class Drawing(tk.Frame):
 
         # ---- Treeview for table on top of canvas ----
         self.tree = ttk.Treeview(self.subframe, show="headings")
+
+        self.tree.config(columns=("file", 'vendor','freq', 'bandname', 'letter', 'tilt', 'gain'))
+        self.tree.heading("file", text="file")
+        self.tree.heading("vendor", text="vendor")
+        self.tree.heading("freq", text="freq")
+        self.tree.heading("bandname", text="bandname")
+        self.tree.heading("letter", text="letter")
+        self.tree.heading("tilt", text="tilt")
+        self.tree.heading("gain", text="gain")
+
+        self.tree.column('file', width=200, anchor='w')
+        self.tree.column('vendor', width=50, anchor='w')
+        self.tree.column('freq', width=10, anchor='w')
+        self.tree.column('bandname', width=10, anchor='w')
+        self.tree.column('letter', width=10, anchor='w')
+        self.tree.column('tilt', width=10, anchor='w')
+        self.tree.column('gain', width=10, anchor='w')
+
         self.tree.place(x=0, y=0, relwidth=1, relheight=1)
         self.tree.bind('<Button-1>', self.on_header_click)
         self.sort_by = 'file'
@@ -577,6 +624,11 @@ class Drawing(tk.Frame):
     def draw_axis(self):
         w = self.winfo_width()
         a = self.padding * w
+
+        # text
+        padding = 0.007
+        self.canvas.create_text( (0.0 + padding) * w, padding  * w, text="Horizontal", font=("Consolas", int(0.02 * w)), fill="#bbb", anchor='nw')
+        self.canvas.create_text( (0.5 + padding )* w, padding  * w, text="Vertical",   font=("Consolas", int(0.02 * w)), fill="#bbb", anchor='nw')
 
         x0, y0 = w/4, w/4
         r = w/4 - a
@@ -671,9 +723,6 @@ class Drawing(tk.Frame):
         self.canvas.place_forget()
         self.tree.place(x=0, y=0, relwidth=1, relheight=1)
 
-        self.tree.config(columns=("file", 'gain'))
-        self.tree.heading("file", text="file")
-        self.tree.heading("gain", text="gain")
 
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -683,7 +732,7 @@ class Drawing(tk.Frame):
         header_infos = sorted(header_infos, key=lambda x: x[self.sort_by], reverse=not self.sort_ascending)
 
         for entry in header_infos:
-            self.tree.insert("", "end", values=(entry['file'], entry['gain']))              
+            self.tree.insert("", "end", values=(entry['file'], entry['vendor'], entry['freq'], entry['bandname'], entry['letter'], entry['tilt'], entry['gain']))              
 
     
     def scale(self, f):
