@@ -42,12 +42,12 @@ class Settings:
     pattern_colors = ['#000', '#f00', '#090', '#00f', '#990', '#099', '#f0f']
 
     extract_freq_from_filename_re = r'.*_(\d{3,4})(_|\.|MHz)'
-    extract_tilt_from_filename_re = r'.*_((\d|-)\d)D?T[_\.]'
-    atoll_import_file = r'C:\test\atoll_import.txt'
+    extract_tilt_from_filename_re = r'.*_(\d\d)FD'
+    atoll_passive_import_file = r'C:\test\atoll_import.txt'
+    band_tolerance = 100 # Gives a band letter if not exact inside
 
 # ------- Utility functions -------
 class Helper:
-    @staticmethod
     def hsl(h, s=100, l=50):
         """
         Convert HSL color to RGB hex format (#ffffff).
@@ -85,16 +85,14 @@ class Helper:
         return f'#{r:02x}{g:02x}{b:02x}'
     
 
-    @staticmethod
     def calc_band(f):
         for band in Settings.bands:
-            fmin = band[2] - 1 # +- one MHz tolerance
-            fmax = band[3] + 1
+            fmin = band[2] - Settings.band_tolerance # +- MHz tolerance
+            fmax = band[3] + Settings.band_tolerance
             if fmin <= f <= fmax:
                 return band
         return []
 
-    @staticmethod
     def make_pattern_dic(msi_path):
         with open(msi_path, encoding='latin1') as fin:
             lines = fin.readlines()
@@ -136,7 +134,6 @@ class Helper:
         dic['VERTICAL'] = vert
         return dic
 
-    @staticmethod
     def read_header(msi_path):
         l = []
         with open(msi_path) as fin:
@@ -147,7 +144,6 @@ class Helper:
                     return l
         return l
 
-    @staticmethod
     def pairs2atoll(pairs_hori, pairs_vert):
         """convert to list of string pairs to atoll importable string"""
         res = '2 0 0 360'
@@ -167,7 +163,6 @@ class Helper:
 
         return res
 
-    @staticmethod
     def calc_gain(s):
         try:
             l = s.split()
@@ -185,14 +180,13 @@ class Helper:
         except:
             return ''
 
-    @staticmethod
     def calc_tilt(s):
         s = s.strip()
         if s == '':
             return 0
         return int(s)
 
-    @staticmethod
+
     def is_valid_regex(sreg):
         try:
             re.compile(sreg)
@@ -200,47 +194,62 @@ class Helper:
         except re.error:
             return False
     
-    @staticmethod
-    def make_atoll(files):
-
-        columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tSR_ANTENNA_LENGHT\tPattern\n"
+    def make_passive_atoll(files):
+        columns = "Name\tGain\tManufacturer\tComments\tELECTRICAL_TILT\tPhysical Antenna\tMin Frequency (MHz)\tMax Frequency (MHz)\tSR_ANTENNA_NAME\tFREQUENCY\tTILT\tSR_BAND\tSR_POLARIZATION\tPattern\n"
         values = []
         for file_dic in files:
+            header_info = Helper.get_header_infos([file_dic])[0]
+            # print(file_dic)
             antenna_dic = Helper.make_pattern_dic(file_dic['path'])
             atoll_str = Helper.pairs2atoll(antenna_dic['HORIZONTAL'], antenna_dic['VERTICAL'])
 
-            freq = float(file_dic['freq'])
+            freq = float(header_info['freq'])
 
             band = Helper.calc_band(freq)
             letter = band[1]
             tilt_str = str(Helper.calc_tilt(file_dic['tilt'])).zfill(2)
 
             Name = antenna_dic['NAME'].split('_')[0] + letter +  '_X' + '_T' + tilt_str
-            Gain = Helper.calc_gain(antenna_dic['GAIN'])
-            Manufacturer = '?'
+            print(Name)
+            Gain = header_info['gain']
+            Manufacturer = header_info['vendor']
             Comments = pathlib.Path(file_dic['file'])
             ELECTRICAL_TILT = file_dic['tilt']
             Physical_Antenna = antenna_dic['NAME']
             Min_Frequency = band[2]
             Max_Frequency = band[3]
             SR_ANTENNA_NAME = antenna_dic['NAME']
-            FREQUENCY = int(band[0])
-            TILT = Helper.calc_tilt(file_dic['tilt'])
-            SR_BAND = letter
+            FREQUENCY = header_info['bandname']
+            TILT = header_info['tilt']
+            SR_BAND = header_info['letter']
             SR_POLARIZATION = 'X'
             SR_ANTENNA_LENGHT = 0
             Pattern = atoll_str
-            line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\t{SR_POLARIZATION}\t{SR_ANTENNA_LENGHT}\t{Pattern}\n'
+            line = f'{Name}\t{Gain}\t{Manufacturer}\t{Comments}\t{ELECTRICAL_TILT}\t{Physical_Antenna}\t{Min_Frequency}\t{Max_Frequency}\t{SR_ANTENNA_NAME}\t{FREQUENCY}\t{TILT}\t{SR_BAND}\tX\t{Pattern}\n'
             values.append(line)
 
-        with open(Settings.atoll_import_file, 'w') as fout:
+        with open(Settings.atoll_passive_import_file, 'w') as fout:
             fout.write(columns)
             for value in values:
                 fout.write(value)
 
-        messagebox.showinfo('Make Atoll Pattern', f'{Settings.atoll_import_file} created')
+        messagebox.showinfo('Make Atoll Pattern', f'{Settings.atoll_passive_import_file} created')
 
-    @staticmethod
+
+    def make_active_atoll(files):
+        columns = "Name,Polarisation,Comments,PHYSICAL_ANTENNA,FREQUENCY,ELECTRICAL_TILT,SR_ANTENNA_NAME\n"
+
+        for file in files:
+            header_info = Helper.get_header_infos(files)
+            print(header_info)
+
+        # with open(Settings.atoll_import_file, 'w') as fout:
+        #     fout.write(columns)
+        #     fout.write("Name,Polarisation,Comments,PHYSICAL_ANTENNA,FREQUENCY,ELECTRICAL_TILT,SR_ANTENNA_NAME\n")
+
+        print('make active atoll')
+
+
     def get_header_infos(files):
         res = []
         for file in files:
@@ -253,6 +262,8 @@ class Helper:
             for entry in header:
                 if "huawei" in entry.lower():
                     vendor = "Huawei"
+                elif "broadradio" in entry.lower():
+                    vendor = "Broadradio"
 
                 if entry.startswith('GAIN'):
                     gain_str = entry.strip()
@@ -853,7 +864,8 @@ class App(tk.Tk):
         # ------ Menue -----
         self.menu_bar = tk.Menu(self)
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
-        file_menu.add_command(label="Make Atoll Import", command=self.on_make_atoll)
+        file_menu.add_command(label="Make passive Atoll import", command=self.on_make_passive_atoll)
+        file_menu.add_command(label="Make active Atoll import", command=self.on_make_active_atoll)
 
         self.menu_bar.add_cascade(label="Action", menu=file_menu)
 
@@ -908,12 +920,18 @@ class App(tk.Tk):
         self.file_table.select_file(self.start_msi)
 
 
-    def on_make_atoll(self, *args):
-        files = self.file_table.files_selected
-        Helper.make_atoll(files)
-
     def set_statusbar(self, s):
         self.status_var.set(s)
+
+    def on_make_passive_atoll(self, *args):
+        files = self.file_table.files_selected
+        Helper.make_passive_atoll(files)
+
+    def on_make_active_atoll(self, *args):
+        files = self.file_table.files_selected
+        Helper.make_active_atoll(files)
+
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
