@@ -86,6 +86,7 @@ class Helper:
     
 
     def calc_band(f):
+        f = float(f)
         for band in Settings.bands:
             fmin = band[2] - Settings.band_tolerance # +- MHz tolerance
             fmax = band[3] + Settings.band_tolerance
@@ -239,26 +240,22 @@ class Helper:
     def make_active_atoll(files):
         columns = "Name,Polarisation,Comments,PHYSICAL_ANTENNA,FREQUENCY,ELECTRICAL_TILT,SR_ANTENNA_NAME\n"
 
-        for file in files:
-            header_info = Helper.get_header_infos(files)
-            print(header_info)
-
-        # with open(Settings.atoll_import_file, 'w') as fout:
-        #     fout.write(columns)
-        #     fout.write("Name,Polarisation,Comments,PHYSICAL_ANTENNA,FREQUENCY,ELECTRICAL_TILT,SR_ANTENNA_NAME\n")
-
         print('make active atoll')
 
+    def inspect_msi(full_path, deep):
+        if not full_path.lower().endswith('.msi'):
+            return
+        name = pathlib.Path(full_path).name
+        dic = {
+            'path' : full_path,
+            'file' : name,
+            'freq' : Helper.extract_freq_from_filename(name),
+            'tilt' : Helper.extract_tilt_from_filename(name)
+        }
 
-    def get_header_infos(files):
-        res = []
-        for file in files:
-            if not file['path'].lower().endswith('.msi'):
-                continue
-
-            path = file['path']
-            header = Helper.read_header(file['path'])
-            vendor = "unknown"
+        if deep:
+            vendor = ""
+            header = Helper.read_header(full_path)
             for entry in header:
                 if "huawei" in entry.lower():
                     vendor = "Huawei"
@@ -270,29 +267,32 @@ class Helper:
                     gain_str = gain_str.strip('GAIN').strip()
                     gain_float = Helper.calc_gain(gain_str)
 
-            tilt = Helper.extract_tilt_from_filename(file['file'])
-            freq = Helper.extract_freq_from_filename(file['file'])
-            band = Helper.calc_band(int(freq))
+            dic['vendor'] = vendor
+            dic['gain'] = gain_float
+
+            band = Helper.calc_band(dic['freq'])
             if len(band) > 0:
                 bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = band
             else:
                 bandname, letter, fmin_sr, fmax_sr, fmin_all, fmax_all, hsl = ['','','','','','','']
 
-            dic = {
-                'path' : path,
-                'file' : file['file'],
-                'freq' : freq,
-                'bandname' : bandname,
-                'letter' : letter,
-                'tilt' : tilt,
-                'gain' : gain_float,
-                'vendor' : vendor
-            }
-            res.append(dic)
+            dic['bandname'] = bandname
+            dic['letter'] = letter
+
+        return dic
+
+    def get_header_infos(files):
+        res = []
+        for file in files:
+            full_path = file['path']
+
+            file_info = Helper.inspect_msi(full_path, deep=True)
+            if not file_info:
+                continue
+            res.append(file_info)
 
         return res    
     
-    @staticmethod
     def extract_tilt_from_filename(filename):
         r = re.match(Settings.extract_tilt_from_filename_re, filename)
         if r:
@@ -300,7 +300,6 @@ class Helper:
         else:
             return ''
         
-    @staticmethod
     def extract_freq_from_filename(filename):
         r = re.match(Settings.extract_freq_from_filename_re, filename)
         if r:
