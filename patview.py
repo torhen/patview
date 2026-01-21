@@ -4,6 +4,7 @@ from tkinter import font
 from tkinter import simpledialog
 from tkinter import messagebox
 import pathlib
+import shutil
 import re
 import math
 import sys
@@ -863,8 +864,10 @@ class App(tk.Tk):
         # ------ Menue -----
         self.menu_bar = tk.Menu(self)
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
+        file_menu.add_command(label="Copy pattern", command=self.on_copy_pattern)
         file_menu.add_command(label="Make passive Atoll import", command=self.on_make_passive_atoll)
         file_menu.add_command(label="Make active Atoll import", command=self.on_make_active_atoll)
+
 
         self.menu_bar.add_cascade(label="Action", menu=file_menu)
 
@@ -921,6 +924,12 @@ class App(tk.Tk):
 
     def set_statusbar(self, s):
         self.status_var.set(s)
+
+    def on_copy_pattern(self, *args):
+        files = self.file_table.get_selected()
+        for file in files:
+            shutil.copy(file, 'C:/test')
+            messagebox.showinfo('Copy pattern', f'{file} copied to C:/test')
 
     def on_make_passive_atoll(self, *args):
         files = self.file_table.get_selected()
