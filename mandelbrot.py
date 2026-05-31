@@ -15,6 +15,7 @@ def make_array():
     for i in range(100):
         X = X**2 + C
         I[(abs(X) > 2) & (I < 0)] = i
+
     return I
 
 
@@ -37,8 +38,8 @@ def on_button_press(event):
     # move window so clicked point becomes center
     g_x0 += dx
     g_x1 += dx
-    g_y0 -= dy
-    g_y1 -= dy
+    g_y0 += dy
+    g_y1 += dy
 
     update()
 
@@ -59,14 +60,12 @@ def on_scroll(event):
 
     update()
 
-
 def update():
     arr = make_array()
     im.set_data(arr)
     im.set_clim(arr.min(), arr.max())
     im.set_extent((g_x0, g_x1, g_y0, g_y1))
     fig.canvas.draw_idle()
-
 
 g_x0 = -2.0
 g_x1 = 2.0
@@ -80,9 +79,8 @@ fig.canvas.mpl_connect("scroll_event", on_scroll)
 ax = fig.add_subplot()
 ax.grid()
 arr = make_array()
-im = ax.imshow(arr, extent=(g_x0, g_x1, g_y0, g_y1), cmap='gist_ncar')
+im = ax.imshow(arr, extent=(g_x0, g_x1, g_y0, g_y1), cmap='gist_ncar', origin='lower')
 plt.show()
-
 
 
         
